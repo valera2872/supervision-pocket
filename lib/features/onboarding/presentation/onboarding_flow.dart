@@ -73,38 +73,45 @@ class _WelcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 36, 22, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Align(alignment: Alignment.centerLeft, child: AppLogo()),
-          const SizedBox(height: 34),
-          Text(
-            'Сохраняйте важное между консультацией и супервизией',
-            style: Theme.of(context).textTheme.headlineLarge,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(22, 36, 22, 20),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 56),
+          child: IntrinsicHeight(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Align(alignment: Alignment.centerLeft, child: AppLogo()),
+                const SizedBox(height: 34),
+                Text(
+                  'Сохраняйте важное между консультацией и супервизией',
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Короткая профессиональная рефлексия поможет заметить свою реакцию, отделить наблюдения от гипотез и сформулировать ясный вопрос к живому супервизору.',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 26),
+                const _Benefit(
+                  icon: Icons.mic_none_rounded,
+                  text: 'Сохранить сложный момент за одну–две минуты',
+                ),
+                const _Benefit(
+                  icon: Icons.account_tree_outlined,
+                  text: 'Вернуться к нему, когда появится ресурс',
+                ),
+                const _Benefit(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  text: 'Подготовить один ясный супервизионный запрос',
+                ),
+                const Spacer(),
+                FilledButton(onPressed: onNext, child: const Text('Продолжить')),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Короткая профессиональная рефлексия поможет заметить свою реакцию, отделить наблюдения от гипотез и сформулировать ясный вопрос к живому супервизору.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 26),
-          const _Benefit(
-            icon: Icons.mic_none_rounded,
-            text: 'Сохранить сложный момент за одну–две минуты',
-          ),
-          const _Benefit(
-            icon: Icons.account_tree_outlined,
-            text: 'Вернуться к нему, когда появится ресурс',
-          ),
-          const _Benefit(
-            icon: Icons.chat_bubble_outline_rounded,
-            text: 'Подготовить один ясный супервизионный запрос',
-          ),
-          const Spacer(),
-          FilledButton(onPressed: onNext, child: const Text('Продолжить')),
-        ],
+        ),
       ),
     );
   }
