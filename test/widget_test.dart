@@ -41,4 +41,38 @@ void main() {
     expect(find.text('Вопрос'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Продолжить'), findsOneWidget);
   });
+
+  testWidgets('main reflection screen fits a narrow phone', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final store = MemorySecurityStore()
+      ..consentVersion = '1.0'
+      ..pin = '1357'
+      ..role = 'supervisee';
+    final controller = AppController(store);
+    final caseController = CaseController(MemoryCaseRepository());
+    final supervisorController = SupervisorController(
+      MemorySupervisorRepository(),
+    );
+    await controller.initialize();
+    await controller.unlock('1357');
+    await caseController.initialize();
+    await supervisorController.initialize();
+
+    await tester.pumpWidget(
+      SupervisionPocketApp(
+        controller: controller,
+        caseController: caseController,
+        supervisorController: supervisorController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Что осталось с вами после консультации?'), findsOneWidget);
+    expect(find.text('Записать сложный момент'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
