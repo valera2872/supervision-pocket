@@ -66,6 +66,7 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
             AppGate.roleSelection => RoleSelectionScreen(
                 currentRole: widget.controller.role,
                 onSelected: widget.controller.chooseRole,
+                onBack: widget.controller.cancelRoleSelection,
                 onLock: widget.controller.lock,
               ),
             AppGate.ready => widget.controller.role == UserRole.supervisor
