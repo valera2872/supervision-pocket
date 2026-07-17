@@ -31,6 +31,14 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   bool _working = false;
   String _textBeforeListening = '';
 
+  static void _routeStatus(String status) {
+    _active?._handleStatus(status);
+  }
+
+  static void _routeError(SpeechRecognitionError error) {
+    _active?._handleError(error);
+  }
+
   @override
   void dispose() {
     if (_active == this) {
@@ -62,16 +70,13 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
     if (!available) {
       setState(() => _working = false);
       _showMessage(
-        'На этом телефоне распознавание речи недоступно. Проверьте разрешение микрофона и установку офлайн-распознавания.',
+        'Распознавание речи недоступно. Разрешите доступ к микрофону в настройках телефона и попробуйте снова.',
       );
       return;
     }
 
     _active = this;
     _textBeforeListening = widget.controller.text.trim();
-    _speech
-      ..statusListener = _handleStatus
-      ..errorListener = _handleError;
 
     try {
       final localeId = await (_russianLocale ??= _findRussianLocale());
@@ -80,7 +85,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
         listenOptions: SpeechListenOptions(
           cancelOnError: true,
           partialResults: true,
-          onDevice: true,
+          onDevice: false,
           listenMode: ListenMode.dictation,
           autoPunctuation: true,
           pauseFor: const Duration(seconds: 5),
@@ -96,7 +101,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       if (!_listening) {
         _active = null;
         _showMessage(
-          'Не удалось начать локальное распознавание. Можно использовать микрофон на клавиатуре телефона.',
+          'Не удалось начать диктовку. Можно также воспользоваться микрофоном на клавиатуре телефона.',
         );
       }
     } catch (_) {
@@ -107,15 +112,20 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       });
       _active = null;
       _showMessage(
-        'Голосовой ввод не запустился. Проверьте разрешение микрофона и попробуйте ещё раз.',
+        'Голосовой ввод не запустился. Проверьте разрешение микрофона и повторите попытку.',
       );
     }
   }
 
-  Future<bool> _initializeSpeech() {
-    return _initialization ??= _speech.initialize(
+  Future<bool> _initializeSpeech() async {
+    final initialization = _initialization ??= _speech.initialize(
+      onStatus: _routeStatus,
+      onError: _routeError,
       options: [SpeechToText.androidNoBluetooth],
     );
+    final available = await initialization;
+    if (!available) _initialization = null;
+    return available;
   }
 
   Future<String?> _findRussianLocale() async {
@@ -148,7 +158,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   void _handleStatus(String status) {
     if (!mounted || _active != this) return;
     final listening = status == SpeechToText.listeningStatus;
-    if (_listening != listening) {
+    if (_listening != listening || _working) {
       setState(() {
         _working = false;
         _listening = listening;
@@ -164,9 +174,11 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       _listening = false;
     });
     _active = null;
-    _showMessage(
-      'Распознавание остановлено. Попробуйте говорить короткими фразами без длинных пауз.',
-    );
+
+    final message = error.errorMsg == 'error_permission'
+        ? 'Доступ к микрофону запрещён. Разрешите его в настройках приложения.'
+        : 'Распознавание остановлено. Попробуйте говорить короткими фразами без длинных пауз.';
+    _showMessage(message);
   }
 
   Future<void> _stopListening() async {
@@ -188,7 +200,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
       builder: (context) => AlertDialog(
         title: const Text('Перед голосовым вводом'),
         content: const Text(
-          'Речь распознаёт системная служба телефона. Приложение не сохраняет аудиозапись. Не называйте настоящие имена, адреса, школы и другие данные, по которым можно узнать клиента.',
+          'Речь распознаёт системная служба телефона: обработка может выполняться на устройстве или сервисом распознавания. Приложение не сохраняет аудиозапись. Не называйте настоящие имена, адреса, школы и другие данные клиента.',
         ),
         actions: [
           TextButton(
@@ -207,6 +219,7 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
   }
 
   void _showMessage(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -219,7 +232,9 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
 
   @override
   Widget build(BuildContext context) {
-    final color = _listening ? Theme.of(context).colorScheme.error : AppColors.teal;
+    final color = _listening
+        ? Theme.of(context).colorScheme.error
+        : AppColors.teal;
     return IconButton(
       onPressed: _toggle,
       tooltip: _listening
@@ -231,7 +246,11 @@ class _VoiceInputButtonState extends State<VoiceInputButton> {
               dimension: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : Icon(_listening ? Icons.stop_circle_outlined : Icons.mic_none_rounded),
+          : Icon(
+              _listening
+                  ? Icons.stop_circle_outlined
+                  : Icons.mic_none_rounded,
+            ),
     );
   }
 }
