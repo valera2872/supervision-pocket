@@ -3,7 +3,29 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supervision_pocket/core/security/security_store.dart';
 
-enum AppGate { loading, onboarding, locked, ready }
+enum AppGate { loading, onboarding, locked, roleSelection, ready }
+
+enum UserRole { supervisee, supervisor }
+
+extension UserRoleValue on UserRole {
+  String get storageValue => switch (this) {
+        UserRole.supervisee => 'supervisee',
+        UserRole.supervisor => 'supervisor',
+      };
+
+  String get title => switch (this) {
+        UserRole.supervisee => 'Я психолог и прохожу супервизию',
+        UserRole.supervisor => 'Я супервизор',
+      };
+
+  static UserRole? fromStorage(String? value) {
+    return switch (value) {
+      'supervisee' => UserRole.supervisee,
+      'supervisor' => UserRole.supervisor,
+      _ => null,
+    };
+  }
+}
 
 class AppController extends ChangeNotifier {
   AppController(this._securityStore);
@@ -12,6 +34,9 @@ class AppController extends ChangeNotifier {
 
   AppGate _gate = AppGate.loading;
   AppGate get gate => _gate;
+
+  UserRole? _role;
+  UserRole? get role => _role;
 
   int _failedAttempts = 0;
   DateTime? _blockedUntil;
@@ -26,6 +51,7 @@ class AppController extends ChangeNotifier {
   Future<void> initialize() async {
     final hasConsent = await _securityStore.hasAcceptedPrivacyRules();
     final hasPin = await _securityStore.hasPin();
+    _role = UserRoleValue.fromStorage(await _securityStore.readRole());
     _gate = hasConsent && hasPin ? AppGate.locked : AppGate.onboarding;
     notifyListeners();
   }
@@ -35,7 +61,7 @@ class AppController extends ChangeNotifier {
     await _securityStore.acceptPrivacyRules('1.0');
     _failedAttempts = 0;
     _blockedUntil = null;
-    _gate = AppGate.ready;
+    _gate = _role == null ? AppGate.roleSelection : AppGate.ready;
     notifyListeners();
   }
 
@@ -47,7 +73,7 @@ class AppController extends ChangeNotifier {
     if (valid) {
       _failedAttempts = 0;
       _blockedUntil = null;
-      _gate = AppGate.ready;
+      _gate = _role == null ? AppGate.roleSelection : AppGate.ready;
       notifyListeners();
       return true;
     }
@@ -61,8 +87,21 @@ class AppController extends ChangeNotifier {
     return false;
   }
 
-  void lock() {
+  Future<void> chooseRole(UserRole role) async {
+    await _securityStore.saveRole(role.storageValue);
+    _role = role;
+    _gate = AppGate.ready;
+    notifyListeners();
+  }
+
+  void requestRoleSelection() {
     if (_gate != AppGate.ready) return;
+    _gate = AppGate.roleSelection;
+    notifyListeners();
+  }
+
+  void lock() {
+    if (_gate != AppGate.ready && _gate != AppGate.roleSelection) return;
     _gate = AppGate.locked;
     notifyListeners();
   }

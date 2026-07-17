@@ -4,6 +4,8 @@ import 'package:supervision_pocket/app/app_controller.dart';
 import 'package:supervision_pocket/core/security/security_store.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/data/case_repository.dart';
+import 'package:supervision_pocket/features/supervisor/application/supervisor_controller.dart';
+import 'package:supervision_pocket/features/supervisor/data/supervisor_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,12 +14,19 @@ Future<void> main() async {
   try {
     final controller = AppController(FlutterSecurityStore());
     final caseController = CaseController(EncryptedCaseRepository());
+    final supervisorController = SupervisorController(
+      EncryptedSupervisorRepository(),
+    );
     await controller.initialize();
-    await caseController.initialize();
+    await Future.wait([
+      caseController.initialize(),
+      supervisorController.initialize(),
+    ]);
     runApp(
       SupervisionPocketApp(
         controller: controller,
         caseController: caseController,
+        supervisorController: supervisorController,
       ),
     );
   } catch (_) {

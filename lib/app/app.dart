@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/app_controller.dart';
 import 'package:supervision_pocket/app/theme/app_theme.dart';
+import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/lock/presentation/unlock_screen.dart';
 import 'package:supervision_pocket/features/onboarding/presentation/onboarding_flow.dart';
+import 'package:supervision_pocket/features/role/presentation/role_selection_screen.dart';
+import 'package:supervision_pocket/features/supervisor/application/supervisor_controller.dart';
+import 'package:supervision_pocket/features/supervisor/presentation/supervisor_shell.dart';
 import 'package:supervision_pocket/features/today/presentation/main_shell.dart';
-import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 
 class SupervisionPocketApp extends StatefulWidget {
   const SupervisionPocketApp({
     required this.controller,
     required this.caseController,
+    required this.supervisorController,
     super.key,
   });
 
   final AppController controller;
   final CaseController caseController;
+  final SupervisorController supervisorController;
 
   @override
   State<SupervisionPocketApp> createState() => _SupervisionPocketAppState();
@@ -58,10 +63,22 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
                 onCompleted: widget.controller.finishOnboarding,
               ),
             AppGate.locked => UnlockScreen(controller: widget.controller),
-            AppGate.ready => MainShell(
+            AppGate.roleSelection => RoleSelectionScreen(
+                currentRole: widget.controller.role,
+                onSelected: widget.controller.chooseRole,
                 onLock: widget.controller.lock,
-                caseController: widget.caseController,
               ),
+            AppGate.ready => widget.controller.role == UserRole.supervisor
+                ? SupervisorShell(
+                    controller: widget.supervisorController,
+                    onLock: widget.controller.lock,
+                    onChangeRole: widget.controller.requestRoleSelection,
+                  )
+                : MainShell(
+                    onLock: widget.controller.lock,
+                    onChangeRole: widget.controller.requestRoleSelection,
+                    caseController: widget.caseController,
+                  ),
           };
         },
       ),

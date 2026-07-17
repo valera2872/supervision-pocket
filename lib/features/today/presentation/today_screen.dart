@@ -7,11 +7,13 @@ import 'package:supervision_pocket/features/cases/presentation/reflection_editor
 class TodayScreen extends StatelessWidget {
   const TodayScreen({
     required this.onLock,
+    required this.onChangeRole,
     required this.caseController,
     super.key,
   });
 
   final VoidCallback onLock;
+  final VoidCallback onChangeRole;
   final CaseController caseController;
 
   @override
@@ -42,10 +44,20 @@ class TodayScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                IconButton.filledTonal(
-                  onPressed: onLock,
-                  tooltip: 'Заблокировать',
-                  icon: const Icon(Icons.lock_outline_rounded),
+                Column(
+                  children: [
+                    IconButton.filledTonal(
+                      onPressed: onChangeRole,
+                      tooltip: 'Сменить роль',
+                      icon: const Icon(Icons.swap_horiz_rounded),
+                    ),
+                    const SizedBox(height: 8),
+                    IconButton.filledTonal(
+                      onPressed: onLock,
+                      tooltip: 'Заблокировать',
+                      icon: const Icon(Icons.lock_outline_rounded),
+                    ),
+                  ],
                 ),
               ],
             ),

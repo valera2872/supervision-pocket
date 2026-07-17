@@ -10,6 +10,8 @@ abstract interface class SecurityStore {
   Future<bool> hasPin();
   Future<void> savePin(String pin);
   Future<bool> verifyPin(String pin);
+  Future<String?> readRole();
+  Future<void> saveRole(String role);
 }
 
 class FlutterSecurityStore implements SecurityStore {
@@ -21,6 +23,7 @@ class FlutterSecurityStore implements SecurityStore {
   static const _consentVersionKey = 'privacy_consent_version';
   static const _pinSaltKey = 'pin_salt';
   static const _pinHashKey = 'pin_hash';
+  static const _roleKey = 'professional_role';
 
   @override
   Future<bool> hasAcceptedPrivacyRules() async {
@@ -57,6 +60,14 @@ class FlutterSecurityStore implements SecurityStore {
     return _constantTimeEquals(_hashPin(pin, salt), storedHash);
   }
 
+  @override
+  Future<String?> readRole() => _storage.read(key: _roleKey);
+
+  @override
+  Future<void> saveRole(String role) {
+    return _storage.write(key: _roleKey, value: role);
+  }
+
   String _hashPin(String pin, String salt) {
     return sha256.convert(utf8.encode('$salt:$pin')).toString();
   }
@@ -74,6 +85,7 @@ class FlutterSecurityStore implements SecurityStore {
 class MemorySecurityStore implements SecurityStore {
   String? consentVersion;
   String? pin;
+  String? role;
 
   @override
   Future<void> acceptPrivacyRules(String version) async {
@@ -93,4 +105,12 @@ class MemorySecurityStore implements SecurityStore {
 
   @override
   Future<bool> verifyPin(String value) async => value == pin;
+
+  @override
+  Future<String?> readRole() async => role;
+
+  @override
+  Future<void> saveRole(String value) async {
+    role = value;
+  }
 }
