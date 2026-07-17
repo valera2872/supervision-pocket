@@ -9,12 +9,14 @@ class CaseController extends ChangeNotifier {
 
   final CaseRepository _repository;
   final List<CaseFile> _cases = [];
+  Future<void> _writeQueue = Future<void>.value();
 
   bool _loading = true;
   Object? _error;
 
   bool get loading => _loading;
   Object? get error => _error;
+
   List<CaseFile> get cases {
     final result = _cases.where((item) => !item.archived).toList();
     result.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
@@ -117,8 +119,23 @@ class CaseController extends ChangeNotifier {
   }
 
   Future<void> _persist({bool notify = true}) async {
-    await _repository.writeAll(_cases);
-    _error = null;
+    final snapshot = List<CaseFile>.unmodifiable(_cases);
+    final operation = _writeQueue.then(
+      (_) => _repository.writeAll(snapshot),
+    );
+    _writeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
+
+    try {
+      await operation;
+      _error = null;
+    } catch (error) {
+      _error = error;
+      if (notify) notifyListeners();
+      rethrow;
+    }
     if (notify) notifyListeners();
   }
 
