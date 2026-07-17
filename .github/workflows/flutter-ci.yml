@@ -36,6 +36,12 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
+      - name: Restore stable alpha signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: supervision-pocket-alpha-debug-keystore-v1
+
       - name: Format sources
         run: dart format lib test
 
