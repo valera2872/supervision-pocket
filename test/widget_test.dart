@@ -7,7 +7,7 @@ import 'package:supervision_pocket/features/cases/application/case_controller.da
 import 'package:supervision_pocket/features/cases/data/case_repository.dart';
 
 void main() {
-  testWidgets('first launch explains who the app is for', (tester) async {
+  testWidgets('first launch presents the premium product promise', (tester) async {
     final controller = AppController(MemorySecurityStore());
     final caseController = CaseController(MemoryCaseRepository());
     await controller.initialize();
@@ -22,13 +22,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Запишите сложный момент после консультации'),
+      find.text('После консультации —\nяснее к супервизии'),
       findsOneWidget,
     );
     expect(
       find.text('Для психологов, которые проходят супервизию'),
       findsOneWidget,
     );
-    expect(find.widgetWithText(FilledButton, 'Начать'), findsOneWidget);
+    expect(find.text('Эпизод'), findsOneWidget);
+    expect(find.text('Реакция'), findsOneWidget);
+    expect(find.text('Вопрос'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Продолжить'), findsOneWidget);
   });
 }

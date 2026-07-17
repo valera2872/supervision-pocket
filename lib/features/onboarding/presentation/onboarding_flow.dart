@@ -73,114 +73,339 @@ class _WelcomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
-          child: IntrinsicHeight(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 690;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 34),
+            child: IntrinsicHeight(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _BrandHeader(),
+                  SizedBox(height: compact ? 18 : 26),
+                  SizedBox(
+                    height: compact ? 302 : 352,
+                    child: const _PremiumHero(),
+                  ),
+                  SizedBox(height: compact ? 18 : 24),
+                  Text(
+                    'Зафиксируйте сложный эпизод голосом. Приложение поможет превратить его в ясный вопрос к супервизору.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.ink,
+                          height: 1.45,
+                        ),
+                  ),
+                  const SizedBox(height: 15),
+                  const _PrivacyLine(),
+                  const Spacer(),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: onNext,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text('Продолжить'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BrandHeader extends StatelessWidget {
+  const _BrandHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.navy,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navy.withValues(alpha: .16),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: const Text(
+            'S',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -.5,
+            ),
+          ),
+        ),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'SUPERVISION POCKET',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
                     ),
-                    decoration: BoxDecoration(
-                      color: AppColors.paleTeal,
-                      borderRadius: BorderRadius.circular(30),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Для психологов, которые проходят супервизию',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.muted,
                     ),
-                    child: const Text(
-                      'Для психологов, которые проходят супервизию',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PremiumHero extends StatelessWidget {
+  const _PremiumHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF153B57), Color(0xFF275B68)],
+        ),
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: .22),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Stack(
+          children: [
+            const Positioned(
+              right: -76,
+              top: -84,
+              child: _GlowCircle(size: 230, opacity: .07),
+            ),
+            const Positioned(
+              left: -58,
+              bottom: -86,
+              child: _GlowCircle(size: 205, opacity: .055),
+            ),
+            Positioned(
+              right: 24,
+              top: 25,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .11),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withValues(alpha: .14)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield_outlined, size: 16, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'Личная запись',
                       style: TextStyle(
-                        color: AppColors.teal,
+                        color: Colors.white,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 28),
-                Text(
-                  'Запишите сложный момент после консультации',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Если после встречи вы продолжаете думать о словах клиента, своей реакции или не понимаете, как лучше было ответить, сохраните этот эпизод здесь.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 22),
-                Container(
-                  padding: const EdgeInsets.all(17),
-                  decoration: BoxDecoration(
-                    color: AppColors.paleBlue,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Что произошло → что вы почувствовали → что хотите спросить у супервизора',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontWeight: FontWeight.w700,
-                      height: 1.4,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 25, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppColors.warmAccent,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.mic_none_rounded,
+                      color: Colors.white,
+                      size: 25,
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const _Benefit(
-                  icon: Icons.mic_none_rounded,
-                  text: 'Надиктовать запись голосом или ввести текст',
-                ),
-                const _Benefit(
-                  icon: Icons.lock_outline_rounded,
-                  text: 'Хранить обезличенные записи в защищённом виде',
-                ),
-                const _Benefit(
-                  icon: Icons.send_outlined,
-                  text: 'Подготовить и передать вопрос супервизору',
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: onNext,
-                  child: const Text('Начать'),
-                ),
-              ],
+                  const Spacer(),
+                  Text(
+                    'После консультации —\nяснее к супервизии',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          color: Colors.white,
+                          fontSize: 31,
+                          height: 1.08,
+                          letterSpacing: -.7,
+                        ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Сохраните то, что осталось с вами.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.white.withValues(alpha: .78),
+                        ),
+                  ),
+                  const SizedBox(height: 22),
+                  const Row(
+                    children: [
+                      Expanded(child: _FlowStep(number: '01', label: 'Эпизод')),
+                      _FlowArrow(),
+                      Expanded(child: _FlowStep(number: '02', label: 'Реакция')),
+                      _FlowArrow(),
+                      Expanded(child: _FlowStep(number: '03', label: 'Вопрос')),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _Benefit extends StatelessWidget {
-  const _Benefit({required this.icon, required this.text});
+class _GlowCircle extends StatelessWidget {
+  const _GlowCircle({required this.size, required this.opacity});
 
-  final IconData icon;
-  final String text;
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          width: 34,
+          color: Colors.white.withValues(alpha: opacity),
+        ),
+      ),
+    );
+  }
+}
+
+class _FlowStep extends StatelessWidget {
+  const _FlowStep({required this.number, required this.label});
+
+  final String number;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: .11)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            number,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .52),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlowArrow extends StatelessWidget {
+  const _FlowArrow();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 15),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.paleTeal,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: AppColors.teal),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Icon(
+        Icons.arrow_forward_rounded,
+        size: 15,
+        color: Colors.white.withValues(alpha: .42),
       ),
+    );
+  }
+}
+
+class _PrivacyLine extends StatelessWidget {
+  const _PrivacyLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: const BoxDecoration(
+            color: AppColors.paleTeal,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: AppColors.teal,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Локально · обезличенно · под PIN',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+      ],
     );
   }
 }
