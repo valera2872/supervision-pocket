@@ -55,7 +55,9 @@ class RoleSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 36),
             Text(
-              currentRole == null ? 'Как вы будете работать?' : 'Выберите рабочее пространство',
+              currentRole == null
+                  ? 'Как вы будете работать?'
+                  : 'Выберите рабочее пространство',
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 10),
@@ -65,7 +67,6 @@ class RoleSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 26),
             _RoleCard(
-              role: UserRole.supervisee,
               icon: Icons.edit_note_rounded,
               eyebrow: 'ЛИЧНАЯ РЕФЛЕКСИЯ',
               title: 'Я психолог',
@@ -76,7 +77,6 @@ class RoleSelectionScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _RoleCard(
-              role: UserRole.supervisor,
               icon: Icons.groups_2_outlined,
               eyebrow: 'РАБОТА С СУПЕРВИЗАНТАМИ',
               title: 'Я супервизор',
@@ -114,7 +114,6 @@ class RoleSelectionScreen extends StatelessWidget {
 
 class _RoleCard extends StatelessWidget {
   const _RoleCard({
-    required this.role,
     required this.icon,
     required this.eyebrow,
     required this.title,
@@ -123,7 +122,6 @@ class _RoleCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final UserRole role;
   final IconData icon;
   final String eyebrow;
   final String title;
