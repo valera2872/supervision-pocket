@@ -412,6 +412,7 @@ class SupervisorController extends ChangeNotifier {
       await _writeQueue;
     } catch (error) {
       if (identical(_workspace, next)) _workspace = previous;
+      _writeQueue = Future.value();
       _error = error;
       notifyListeners();
       rethrow;
