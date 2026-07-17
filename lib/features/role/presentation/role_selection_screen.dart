@@ -6,106 +6,123 @@ class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({
     required this.currentRole,
     required this.onSelected,
+    required this.onBack,
     required this.onLock,
     super.key,
   });
 
   final UserRole? currentRole;
   final Future<void> Function(UserRole role) onSelected;
+  final VoidCallback onBack;
   final VoidCallback onLock;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.navy,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Icon(
-                    Icons.layers_outlined,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Text(
-                    'Supervision Pocket',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                IconButton.filledTonal(
-                  onPressed: onLock,
-                  tooltip: 'Заблокировать',
-                  icon: const Icon(Icons.lock_outline_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 36),
-            Text(
-              currentRole == null
-                  ? 'Как вы будете работать?'
-                  : 'Выберите рабочее пространство',
-              style: Theme.of(context).textTheme.headlineLarge,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'У каждой роли свой интерфейс. Вы сможете изменить выбор позже, не теряя локальные записи.',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 26),
-            _RoleCard(
-              icon: Icons.edit_note_rounded,
-              eyebrow: 'ЛИЧНАЯ РЕФЛЕКСИЯ',
-              title: 'Я психолог',
-              description:
-                  'Фиксировать сложные эпизоды, готовить вопросы и передавать выбранные материалы супервизору.',
-              selected: currentRole == UserRole.supervisee,
-              onTap: () => onSelected(UserRole.supervisee),
-            ),
-            const SizedBox(height: 16),
-            _RoleCard(
-              icon: Icons.groups_2_outlined,
-              eyebrow: 'РАБОТА С СУПЕРВИЗАНТАМИ',
-              title: 'Я супервизор',
-              description:
-                  'Вести список супервизантов, собирать запросы к встрече и отмечать договорённости.',
-              selected: currentRole == UserRole.supervisor,
-              onTap: () => onSelected(UserRole.supervisor),
-            ),
-            const SizedBox(height: 22),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.paleTeal,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return PopScope(
+      canPop: currentRole == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && currentRole != null) onBack();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+            children: [
+              Row(
                 children: [
-                  Icon(Icons.shield_outlined, color: AppColors.teal),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'На этом этапе оба пространства работают локально. Защищённое подключение между устройствами будет добавлено отдельным серверным этапом.',
+                  if (currentRole != null)
+                    IconButton.filledTonal(
+                      onPressed: onBack,
+                      tooltip: 'Вернуться',
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    )
+                  else
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.navy,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(
+                        Icons.layers_outlined,
+                        color: Colors.white,
+                      ),
                     ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Supervision Pocket',
+                      style: TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: onLock,
+                    tooltip: 'Заблокировать',
+                    icon: const Icon(Icons.lock_outline_rounded),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+              Text(
+                currentRole == null
+                    ? 'Как вы будете работать?'
+                    : 'Сменить рабочее пространство',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                currentRole == null
+                    ? 'Выберите роль. У каждого режима свой интерфейс и свои локальные записи.'
+                    : 'Текущий режим отмечен галочкой. Можно выбрать другой или вернуться назад без изменений.',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 26),
+              _RoleCard(
+                icon: Icons.edit_note_rounded,
+                eyebrow: 'ЛИЧНАЯ РЕФЛЕКСИЯ',
+                title: 'Я психолог',
+                description:
+                    'Фиксировать сложные эпизоды, готовить вопросы и передавать выбранные материалы супервизору.',
+                selected: currentRole == UserRole.supervisee,
+                onTap: () => onSelected(UserRole.supervisee),
+              ),
+              const SizedBox(height: 16),
+              _RoleCard(
+                icon: Icons.groups_2_outlined,
+                eyebrow: 'РАБОТА С СУПЕРВИЗАНТАМИ',
+                title: 'Я супервизор',
+                description:
+                    'Вести список супервизантов, собирать запросы к встрече и отмечать договорённости.',
+                selected: currentRole == UserRole.supervisor,
+                onTap: () => onSelected(UserRole.supervisor),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.paleTeal,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.shield_outlined, color: AppColors.teal),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Оба пространства пока работают локально. Защищённое подключение между устройствами будет добавлено на серверном этапе.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -193,7 +210,7 @@ class _RoleCard extends StatelessWidget {
                       title,
                       style: TextStyle(
                         color: selected ? Colors.white : AppColors.ink,
-                        fontSize: 23,
+                        fontSize: 22,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
                       ),

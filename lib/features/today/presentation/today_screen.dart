@@ -21,37 +21,47 @@ class TodayScreen extends StatelessWidget {
     return SafeArea(
       child: ListenableBuilder(
         listenable: caseController,
-        builder: (context, _) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        builder: (context, _) => LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 390;
+            final horizontalPadding = compact ? 16.0 : 20.0;
+
+            return ListView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                14,
+                horizontalPadding,
+                28,
+              ),
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Что осталось с вами после консультации?',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Запишите конкретный эпизод, о котором продолжаете думать: слова клиента, свою реакцию, сомнение или сложность в работе.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Column(
+                Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.paleTeal,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: const Text(
+                        'РЕФЛЕКСИЯ',
+                        style: TextStyle(
+                          color: AppColors.teal,
+                          fontSize: 11,
+                          letterSpacing: 1,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
                     IconButton.filledTonal(
                       onPressed: onChangeRole,
                       tooltip: 'Сменить роль',
                       icon: const Icon(Icons.swap_horiz_rounded),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(width: 8),
                     IconButton.filledTonal(
                       onPressed: onLock,
                       tooltip: 'Заблокировать',
@@ -59,138 +69,122 @@ class TodayScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Material(
-              color: AppColors.navy,
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                onTap: () => _startCapture(context),
-                borderRadius: BorderRadius.circular(24),
-                child: const Padding(
-                  padding: EdgeInsets.all(22),
-                  child: Row(
+                SizedBox(height: compact ? 18 : 22),
+                Text(
+                  'Что осталось с вами после консультации?',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                        fontSize: compact ? 24 : 28,
+                        height: 1.16,
+                      ),
+                ),
+                const SizedBox(height: 9),
+                Text(
+                  'Запишите конкретный эпизод: слова клиента, свою реакцию, сомнение или сложность в работе.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: compact ? 13.5 : 14,
+                      ),
+                ),
+                SizedBox(height: compact ? 20 : 24),
+                _CaptureCard(
+                  compact: compact,
+                  onTap: () => _startCapture(context),
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  'Ваши записи',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(compact ? 17 : 20),
+                    child: caseController.reflectionCount == 0
+                        ? Column(
+                            children: [
+                              const Icon(
+                                Icons.edit_note_rounded,
+                                size: 38,
+                                color: AppColors.teal,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Пока нет сохранённых эпизодов',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'После сложной консультации нажмите кнопку выше. Ответы можно надиктовать голосом.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: AppColors.paleTeal,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(
+                                  Icons.auto_stories_outlined,
+                                  color: AppColors.teal,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${caseController.reflectionCount} сохранённых эпизодов',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${caseController.supervisionQuestions.length} вопросов подготовлено к супервизии',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleTeal,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _CaptureIcon(),
-                      SizedBox(width: 17),
+                      Icon(Icons.privacy_tip_outlined, color: AppColors.teal),
+                      SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Записать сложный момент',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 19,
-                                height: 1.25,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Что произошло, как вы отреагировали и что хотите спросить у супервизора',
-                              style: TextStyle(
-                                color: Color(0xFFDDE8EE),
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          'Не называйте настоящие имена, адреса, школы и другие данные, по которым можно узнать клиента.',
                         ),
                       ),
-                      Icon(Icons.arrow_forward_rounded, color: Colors.white),
                     ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 28),
-            Text(
-              'Ваши записи',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: caseController.reflectionCount == 0
-                    ? Column(
-                        children: [
-                          const Icon(
-                            Icons.edit_note_rounded,
-                            size: 40,
-                            color: AppColors.teal,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Пока нет сохранённых эпизодов',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'После сложной консультации нажмите кнопку выше. Можно надиктовать ответы голосом.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Container(
-                            width: 54,
-                            height: 54,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.paleTeal,
-                              borderRadius: BorderRadius.circular(17),
-                            ),
-                            child: const Icon(
-                              Icons.auto_stories_outlined,
-                              color: AppColors.teal,
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${caseController.reflectionCount} сохранённых эпизодов',
-                                  style: Theme.of(context).textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${caseController.supervisionQuestions.length} вопросов подготовлено к супервизии',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(17),
-              decoration: BoxDecoration(
-                color: AppColors.paleTeal,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.privacy_tip_outlined, color: AppColors.teal),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Не называйте настоящие имена, адреса, школы и другие данные, по которым можно узнать клиента.',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -235,14 +229,95 @@ class TodayScreen extends StatelessWidget {
   }
 }
 
+class _CaptureCard extends StatelessWidget {
+  const _CaptureCard({required this.compact, required this.onTap});
+
+  final bool compact;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.navy,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 19 : 22),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        _CaptureIcon(size: 50),
+                        Spacer(),
+                        Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const _CaptureText(titleSize: 18),
+                  ],
+                )
+              : const Row(
+                  children: [
+                    _CaptureIcon(size: 54),
+                    SizedBox(width: 17),
+                    Expanded(child: _CaptureText(titleSize: 19)),
+                    SizedBox(width: 8),
+                    Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CaptureText extends StatelessWidget {
+  const _CaptureText({required this.titleSize});
+
+  final double titleSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Записать сложный момент',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: titleSize,
+            height: 1.22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Что произошло, как вы отреагировали и что хотите спросить у супервизора',
+          style: TextStyle(
+            color: Color(0xFFDDE8EE),
+            fontSize: 14,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CaptureIcon extends StatelessWidget {
-  const _CaptureIcon();
+  const _CaptureIcon({required this.size});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 54,
-      height: 54,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .13),
         borderRadius: BorderRadius.circular(17),
@@ -250,7 +325,7 @@ class _CaptureIcon extends StatelessWidget {
       child: const Icon(
         Icons.mic_none_rounded,
         color: Colors.white,
-        size: 29,
+        size: 28,
       ),
     );
   }

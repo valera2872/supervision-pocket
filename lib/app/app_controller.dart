@@ -100,6 +100,12 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void cancelRoleSelection() {
+    if (_gate != AppGate.roleSelection || _role == null) return;
+    _gate = AppGate.ready;
+    notifyListeners();
+  }
+
   void lock() {
     if (_gate != AppGate.ready && _gate != AppGate.roleSelection) return;
     _gate = AppGate.locked;
