@@ -68,18 +68,17 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
                 onSelected: widget.controller.chooseRole,
                 onLock: widget.controller.lock,
               ),
-            AppGate.ready => switch (widget.controller.role) {
-                UserRole.supervisor => SupervisorShell(
+            AppGate.ready => widget.controller.role == UserRole.supervisor
+                ? SupervisorShell(
                     controller: widget.supervisorController,
                     onLock: widget.controller.lock,
                     onChangeRole: widget.controller.requestRoleSelection,
-                  ),
-                UserRole.supervisee || null => MainShell(
+                  )
+                : MainShell(
                     onLock: widget.controller.lock,
                     onChangeRole: widget.controller.requestRoleSelection,
                     caseController: widget.caseController,
                   ),
-              },
           };
         },
       ),
