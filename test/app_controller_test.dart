@@ -57,4 +57,21 @@ void main() {
     expect(await controller.unlock('1357'), isTrue);
     expect(controller.gate, AppGate.roleSelection);
   });
+
+  test('existing role can return from role selection without changes', () async {
+    final store = MemorySecurityStore()
+      ..consentVersion = '1.0'
+      ..pin = '1357'
+      ..role = 'supervisor';
+    final controller = AppController(store);
+    await controller.initialize();
+    await controller.unlock('1357');
+
+    controller.requestRoleSelection();
+    expect(controller.gate, AppGate.roleSelection);
+
+    controller.cancelRoleSelection();
+    expect(controller.gate, AppGate.ready);
+    expect(controller.role, UserRole.supervisor);
+  });
 }
