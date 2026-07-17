@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/presentation/cases_screen.dart';
 import 'package:supervision_pocket/features/supervision/presentation/supervision_screen.dart';
 import 'package:supervision_pocket/features/today/presentation/today_screen.dart';
-import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({
     required this.onLock,
+    required this.onChangeRole,
     required this.caseController,
     super.key,
   });
 
   final VoidCallback onLock;
+  final VoidCallback onChangeRole;
   final CaseController caseController;
 
   @override
@@ -26,6 +28,7 @@ class _MainShellState extends State<MainShell> {
     final screens = [
       TodayScreen(
         onLock: widget.onLock,
+        onChangeRole: widget.onChangeRole,
         caseController: widget.caseController,
       ),
       CasesScreen(controller: widget.caseController),
