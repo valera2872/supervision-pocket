@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
+import 'package:supervision_pocket/core/widgets/voice_input_button.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/domain/case_models.dart';
 
@@ -68,7 +69,12 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   @override
   void dispose() {
     _draftTimer?.cancel();
-    if (!_submitted) unawaited(_saveDraft());
+    if (!_submitted) {
+      final draft = _draft();
+      unawaited(
+        widget.controller.saveDraft(widget.caseId, draft).catchError((_) {}),
+      );
+    }
     for (final field in _fields) {
       field.dispose();
     }
@@ -93,17 +99,47 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
         supervisionQuestion: _fields[6].text,
       );
 
-  Future<void> _saveDraft() {
-    return widget.controller.saveDraft(widget.caseId, _draft());
+  Future<void> _saveDraft() async {
+    final draft = _draft();
+    try {
+      await widget.controller.saveDraft(widget.caseId, draft);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Не удалось сохранить последние изменения. Проверьте свободное место и продолжите запись.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     _draftTimer?.cancel();
     setState(() => _saving = true);
-    _submitted = true;
-    await widget.controller.addReflection(widget.caseId, _draft());
-    if (mounted) Navigator.pop(context);
+    final draft = _draft();
+
+    try {
+      await widget.controller.addReflection(widget.caseId, draft);
+      _submitted = true;
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Запись не сохранилась. Черновик остаётся на экране — попробуйте ещё раз.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -111,7 +147,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
     final caseFile = widget.controller.findById(widget.caseId);
     return Scaffold(
       appBar: AppBar(
-        title: Text(caseFile?.alias ?? 'Рефлексия'),
+        title: Text(caseFile?.alias ?? 'Сложный момент'),
         leading: IconButton(
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.close_rounded),
@@ -123,12 +159,12 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
           children: [
             Text(
-              'Сохранить важный момент',
+              'Что произошло на консультации?',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 7),
             Text(
-              'Не нужно заполнять всё. Начните с факта, который продолжает удерживать внимание.',
+              'Ответьте только на те вопросы, которые помогают вспомнить эпизод. Нажмите микрофон возле поля, чтобы надиктовать ответ.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 18),
@@ -138,54 +174,63 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
               controller: _fields[0],
               number: '1',
               label: 'Что произошло?',
-              hint: 'Только наблюдаемые слова, действия и события',
+              hint:
+                  'Что клиент сказал или сделал и что в этот момент происходило?',
               isRequired: true,
             ),
             _ReflectionField(
               controller: _fields[1],
               number: '2',
-              label: 'Как я это понимаю?',
-              hint: 'Моя интерпретация или рабочая гипотеза',
+              label: 'Как я это понял(а)?',
+              hint: 'Как я объяснил(а) себе слова или поведение клиента?',
             ),
             _ReflectionField(
               controller: _fields[2],
               number: '3',
               label: 'Что я почувствовал(а)?',
-              hint: 'Эмоции и телесная реакция',
+              hint:
+                  'Например: растерянность, раздражение, тревогу или бессилие',
             ),
             _ReflectionField(
               controller: _fields[3],
               number: '4',
               label: 'Что мне захотелось сделать?',
-              hint: 'Первый импульс, даже если вы ему не последовали',
+              hint: 'Первый импульс, даже если я ему не последовал(а)',
             ),
             _ReflectionField(
               controller: _fields[4],
               number: '5',
-              label: 'Что я сделал(а)?',
-              hint: 'Мои слова, решение или вмешательство',
+              label: 'Как я отреагировал(а)?',
+              hint: 'Что я сказал(а) или сделал(а) после этого?',
             ),
             _ReflectionField(
               controller: _fields[5],
               number: '6',
-              label: 'Где возник тупик?',
-              hint: 'Что осталось неясным или трудным',
+              label: 'Что осталось непонятным?',
+              hint: 'Где я сомневаюсь или не понимаю, как лучше поступить?',
             ),
             _ReflectionField(
               controller: _fields[6],
               number: '7',
-              label: 'Вопрос к супервизору',
-              hint: 'Что именно я хочу понять на супервизии?',
+              label: 'Что я хочу спросить у супервизора?',
+              hint: 'Один конкретный вопрос для ближайшей супервизии',
               accent: true,
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.cloud_done_outlined, size: 18, color: AppColors.teal),
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 18,
+                  color: AppColors.teal,
+                ),
                 const SizedBox(width: 7),
-                Text(
-                  'Черновик сохраняется автоматически и локально',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Flexible(
+                  child: Text(
+                    'Черновик сохраняется автоматически на этом устройстве',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               ],
             ),
@@ -202,7 +247,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.check_rounded),
-          label: const Text('Сохранить в хронологию'),
+          label: const Text('Сохранить и подготовить к супервизии'),
         ),
       ),
     );
@@ -227,7 +272,7 @@ class _SeparationHint extends StatelessWidget {
           SizedBox(width: 11),
           Expanded(
             child: Text(
-              'Факт — то, что можно было увидеть или услышать. Гипотеза — то, как вы это объясняете.',
+              'Сначала опишите то, что можно было увидеть или услышать. Своё объяснение ситуации добавьте в следующем поле.',
             ),
           ),
         ],
@@ -281,7 +326,7 @@ class _ReflectionField extends StatelessWidget {
             child: TextFormField(
               controller: controller,
               minLines: 2,
-              maxLines: 5,
+              maxLines: 6,
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 labelText: label,
@@ -290,10 +335,14 @@ class _ReflectionField extends StatelessWidget {
                 border: const OutlineInputBorder(),
                 filled: accent,
                 fillColor: accent ? AppColors.paleBlue : null,
+                suffixIcon: VoiceInputButton(
+                  controller: controller,
+                  fieldName: label,
+                ),
               ),
               validator: isRequired
                   ? (value) => value == null || value.trim().isEmpty
-                      ? 'Сначала опишите наблюдаемый факт'
+                      ? 'Сначала коротко опишите, что произошло'
                       : null
                   : null,
             ),

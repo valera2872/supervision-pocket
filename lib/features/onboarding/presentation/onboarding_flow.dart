@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
-import 'package:supervision_pocket/core/widgets/app_logo.dart';
 import 'package:supervision_pocket/core/widgets/step_dots.dart';
 import 'package:supervision_pocket/features/lock/presentation/create_pin_panel.dart';
 
@@ -75,39 +74,77 @@ class _WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(22, 36, 22, 20),
+        padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight - 56),
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
           child: IntrinsicHeight(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Align(alignment: Alignment.centerLeft, child: AppLogo()),
-                const SizedBox(height: 34),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.paleTeal,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Text(
+                      'Для психологов, которые проходят супервизию',
+                      style: TextStyle(
+                        color: AppColors.teal,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 28),
                 Text(
-                  'Сохраняйте важное между консультацией и супервизией',
+                  'Запишите сложный момент после консультации',
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Text(
-                  'Короткая профессиональная рефлексия поможет заметить свою реакцию, отделить наблюдения от гипотез и сформулировать ясный вопрос к живому супервизору.',
+                  'Если после встречи вы продолжаете думать о словах клиента, своей реакции или не понимаете, как лучше было ответить, сохраните этот эпизод здесь.',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
-                const SizedBox(height: 26),
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.all(17),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleBlue,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Что произошло → что вы почувствовали → что хотите спросить у супервизора',
+                    style: TextStyle(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const _Benefit(
                   icon: Icons.mic_none_rounded,
-                  text: 'Сохранить сложный момент за одну–две минуты',
+                  text: 'Надиктовать запись голосом или ввести текст',
                 ),
                 const _Benefit(
-                  icon: Icons.account_tree_outlined,
-                  text: 'Вернуться к нему, когда появится ресурс',
+                  icon: Icons.lock_outline_rounded,
+                  text: 'Хранить обезличенные записи в защищённом виде',
                 ),
                 const _Benefit(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  text: 'Подготовить один ясный супервизионный запрос',
+                  icon: Icons.send_outlined,
+                  text: 'Подготовить и передать вопрос супервизору',
                 ),
                 const Spacer(),
-                FilledButton(onPressed: onNext, child: const Text('Продолжить')),
+                FilledButton(
+                  onPressed: onNext,
+                  child: const Text('Начать'),
+                ),
               ],
             ),
           ),
@@ -139,7 +176,9 @@ class _Benefit extends StatelessWidget {
             child: Icon(icon, color: AppColors.teal),
           ),
           const SizedBox(width: 13),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyLarge)),
+          Expanded(
+            child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+          ),
         ],
       ),
     );
@@ -178,7 +217,10 @@ class _PrivacyPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 34, 22, 20),
       children: [
-        Text('Сначала — безопасность', style: Theme.of(context).textTheme.headlineLarge),
+        Text(
+          'Сначала — безопасность',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
         const SizedBox(height: 12),
         Text(
           'Материал остаётся на этом устройстве. Перед началом подтвердите три правила.',
@@ -195,7 +237,10 @@ class _PrivacyPage extends StatelessWidget {
                 onChanged: (value) => onChanged(index, value ?? false),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
-                title: Text(item.$1, style: Theme.of(context).textTheme.titleMedium),
+                title: Text(
+                  item.$1,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 5),
                   child: Text(item.$2),
@@ -218,7 +263,7 @@ class _PrivacyPage extends StatelessWidget {
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'В альфа-версии нет аккаунта, рекламы, облачной синхронизации и автоматической отправки материалов.',
+                  'В этой версии нет аккаунта, рекламы, облачной синхронизации и автоматической отправки материалов.',
                 ),
               ),
             ],
@@ -244,7 +289,10 @@ class _PinPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 34, 22, 20),
       children: [
-        Text('Защитите вход', style: Theme.of(context).textTheme.headlineLarge),
+        Text(
+          'Защитите вход',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
         const SizedBox(height: 12),
         Text(
           'Создайте PIN из 4–6 цифр. Если PIN будет забыт, восстановить локальные записи без удаления данных нельзя.',

@@ -7,14 +7,68 @@ import 'package:supervision_pocket/features/cases/data/case_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final controller = AppController(FlutterSecurityStore());
-  final caseController = CaseController(EncryptedCaseRepository());
-  await controller.initialize();
-  await caseController.initialize();
-  runApp(
-    SupervisionPocketApp(
-      controller: controller,
-      caseController: caseController,
-    ),
-  );
+  ErrorWidget.builder = (_) => const _FriendlyErrorPanel();
+
+  try {
+    final controller = AppController(FlutterSecurityStore());
+    final caseController = CaseController(EncryptedCaseRepository());
+    await controller.initialize();
+    await caseController.initialize();
+    runApp(
+      SupervisionPocketApp(
+        controller: controller,
+        caseController: caseController,
+      ),
+    );
+  } catch (_) {
+    runApp(const _StartupFailureApp());
+  }
+}
+
+class _StartupFailureApp extends StatelessWidget {
+  const _StartupFailureApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: _FriendlyErrorPanel(),
+        ),
+      ),
+    );
+  }
+}
+
+class _FriendlyErrorPanel extends StatelessWidget {
+  const _FriendlyErrorPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Material(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 48),
+              SizedBox(height: 16),
+              Text(
+                'Не удалось открыть этот экран',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Закройте приложение и откройте его снова. Сохранённые записи останутся на устройстве.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

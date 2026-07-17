@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/domain/case_models.dart';
@@ -24,10 +25,13 @@ class SupervisionScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Супервизия', style: Theme.of(context).textTheme.headlineLarge),
+                      Text(
+                        'К ближайшей супервизии',
+                        style: Theme.of(context).textTheme.headlineLarge,
+                      ),
                       const SizedBox(height: 6),
                       Text(
-                        'Подготовленные запросы из профессиональной хронологии.',
+                        'Здесь собраны эпизоды, в которых вы сформулировали вопрос супервизору.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -35,7 +39,10 @@ class SupervisionScreen extends StatelessWidget {
                 ),
               ),
               if (questions.isEmpty)
-                const SliverFillRemaining(hasScrollBody: false, child: _EmptySupervision())
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _EmptySupervision(),
+                )
               else ...[
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -49,11 +56,14 @@ class SupervisionScreen extends StatelessWidget {
                       child: const Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info_outline_rounded, color: AppColors.navy),
+                          Icon(
+                            Icons.privacy_tip_outlined,
+                            color: AppColors.navy,
+                          ),
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Перед передачей материала ещё раз проверьте, что в нём нет настоящих имён и других идентификаторов.',
+                              'Ничего не отправляется автоматически. Перед передачей ещё раз проверьте, что в тексте нет настоящих имён и других данных клиента.',
                             ),
                           ),
                         ],
@@ -98,41 +108,75 @@ class _QuestionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.paleTeal,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Text(
+                '${caseFile.alias} · ${caseFile.ageRange}',
+                style: const TextStyle(
+                  color: AppColors.teal,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              entry.supervisionQuestion,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 14),
+            _Part(label: 'Что произошло', value: entry.observedFact),
+            _Part(label: 'Как я это понял(а)', value: entry.interpretation),
+            _Part(label: 'Что я почувствовал(а)', value: entry.feeling),
+            _Part(label: 'Как я отреагировал(а)', value: entry.actionTaken),
+            _Part(label: 'Что осталось непонятным', value: entry.stuckPoint),
+            const SizedBox(height: 5),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.paleTeal,
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  child: Text(
-                    '${caseFile.alias} · ${caseFile.ageRange}',
-                    style: const TextStyle(
-                      color: AppColors.teal,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _share(context),
+                    icon: const Icon(Icons.send_outlined),
+                    label: const Text('Передать супервизору'),
                   ),
                 ),
-                const Spacer(),
-                IconButton(
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
                   onPressed: () => _copy(context),
-                  tooltip: 'Скопировать запрос',
+                  tooltip: 'Скопировать текст',
                   icon: const Icon(Icons.copy_rounded),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(entry.supervisionQuestion, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 14),
-            _Part(label: 'Наблюдаемый эпизод', value: entry.observedFact),
-            _Part(label: 'Моя гипотеза', value: entry.interpretation),
-            _Part(label: 'Моя реакция', value: entry.feeling),
-            _Part(label: 'Где я застрял(а)', value: entry.stuckPoint),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _share(BuildContext context) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: _requestText(),
+          subject: 'Запрос к супервизии: ${caseFile.alias}',
+          title: 'Передать запрос супервизору',
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Не удалось открыть меню передачи. Скопируйте текст соседней кнопкой.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _copy(BuildContext context) async {
@@ -140,7 +184,7 @@ class _QuestionCard extends StatelessWidget {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Супервизионный запрос скопирован'),
+          content: Text('Запрос скопирован'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -149,14 +193,21 @@ class _QuestionCard extends StatelessWidget {
 
   String _requestText() {
     final parts = <String>[
+      'Запрос к супервизии',
       'Случай: ${caseFile.alias}, ${caseFile.ageRange}',
-      if (caseFile.context.isNotEmpty) 'Контекст: ${caseFile.context}',
-      'Наблюдаемый эпизод: ${entry.observedFact}',
-      if (entry.interpretation.isNotEmpty) 'Моя рабочая гипотеза: ${entry.interpretation}',
-      if (entry.feeling.isNotEmpty) 'Моя реакция: ${entry.feeling}',
-      if (entry.actionTaken.isNotEmpty) 'Что я сделал(а): ${entry.actionTaken}',
-      if (entry.stuckPoint.isNotEmpty) 'Где возник тупик: ${entry.stuckPoint}',
-      'Вопрос к супервизору: ${entry.supervisionQuestion}',
+      if (caseFile.context.isNotEmpty) 'Краткий контекст: ${caseFile.context}',
+      'Что произошло: ${entry.observedFact}',
+      if (entry.interpretation.isNotEmpty)
+        'Как я это понял(а): ${entry.interpretation}',
+      if (entry.feeling.isNotEmpty)
+        'Что я почувствовал(а): ${entry.feeling}',
+      if (entry.impulse.isNotEmpty)
+        'Что мне захотелось сделать: ${entry.impulse}',
+      if (entry.actionTaken.isNotEmpty)
+        'Как я отреагировал(а): ${entry.actionTaken}',
+      if (entry.stuckPoint.isNotEmpty)
+        'Что осталось непонятным: ${entry.stuckPoint}',
+      'Мой вопрос: ${entry.supervisionQuestion}',
     ];
     return parts.join('\n\n');
   }
@@ -199,18 +250,25 @@ class _EmptySupervision extends StatelessWidget {
             width: 76,
             height: 76,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppColors.paleBlue, shape: BoxShape.circle),
-            child: const Icon(Icons.forum_outlined, size: 38, color: AppColors.navy),
+            decoration: const BoxDecoration(
+              color: AppColors.paleBlue,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.forum_outlined,
+              size: 38,
+              color: AppColors.navy,
+            ),
           ),
           const SizedBox(height: 18),
           Text(
-            'Запросов пока нет',
+            'Пока нечего передавать супервизору',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
           Text(
-            'Добавьте вопрос к супервизору в рефлексии — приложение соберёт рядом факт, гипотезу, реакцию и точку затруднения.',
+            'Запишите сложный эпизод и сформулируйте вопрос. После сохранения он появится здесь.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
