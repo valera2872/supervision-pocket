@@ -171,7 +171,7 @@ class TodayScreen extends StatelessWidget {
   }
 
   Future<void> _startCapture(BuildContext context) async {
-    var cases = caseController.cases;
+    final cases = caseController.cases;
     if (cases.isEmpty) {
       final created = await showCreateCaseSheet(context, caseController);
       if (created == null || !context.mounted) return;
@@ -180,8 +180,7 @@ class TodayScreen extends StatelessWidget {
     }
 
     var caseId = cases.length == 1 ? cases.first.id : null;
-    if (caseId == null) {
-      caseId = await showModalBottomSheet<String>(
+    caseId ??= await showModalBottomSheet<String>(
         context: context,
         useSafeArea: true,
         builder: (context) => ListView(
@@ -201,7 +200,6 @@ class TodayScreen extends StatelessWidget {
           ],
         ),
       );
-    }
     if (caseId != null && context.mounted) {
       await openReflectionEditor(context, caseController, caseId);
     }
