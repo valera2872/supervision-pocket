@@ -4,11 +4,17 @@ import 'package:supervision_pocket/app/theme/app_theme.dart';
 import 'package:supervision_pocket/features/lock/presentation/unlock_screen.dart';
 import 'package:supervision_pocket/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:supervision_pocket/features/today/presentation/main_shell.dart';
+import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 
 class SupervisionPocketApp extends StatefulWidget {
-  const SupervisionPocketApp({required this.controller, super.key});
+  const SupervisionPocketApp({
+    required this.controller,
+    required this.caseController,
+    super.key,
+  });
 
   final AppController controller;
+  final CaseController caseController;
 
   @override
   State<SupervisionPocketApp> createState() => _SupervisionPocketAppState();
@@ -52,7 +58,10 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
                 onCompleted: widget.controller.finishOnboarding,
               ),
             AppGate.locked => UnlockScreen(controller: widget.controller),
-            AppGate.ready => MainShell(onLock: widget.controller.lock),
+            AppGate.ready => MainShell(
+                onLock: widget.controller.lock,
+                caseController: widget.caseController,
+              ),
           };
         },
       ),

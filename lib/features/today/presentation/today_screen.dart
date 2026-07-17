@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
+import 'package:supervision_pocket/features/cases/application/case_controller.dart';
+import 'package:supervision_pocket/features/cases/presentation/create_case_sheet.dart';
+import 'package:supervision_pocket/features/cases/presentation/reflection_editor_screen.dart';
 
 class TodayScreen extends StatelessWidget {
-  const TodayScreen({required this.onLock, super.key});
+  const TodayScreen({
+    required this.onLock,
+    required this.caseController,
+    super.key,
+  });
 
   final VoidCallback onLock;
+  final CaseController caseController;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: ListView(
+      child: ListenableBuilder(
+        listenable: caseController,
+        builder: (context, _) => ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
         children: [
           Row(
@@ -39,7 +49,7 @@ class TodayScreen extends StatelessWidget {
             color: AppColors.navy,
             borderRadius: BorderRadius.circular(24),
             child: InkWell(
-              onTap: () => _comingNext(context),
+              onTap: () => _startCapture(context),
               borderRadius: BorderRadius.circular(24),
               child: const Padding(
                 padding: EdgeInsets.all(22),
@@ -62,7 +72,7 @@ class TodayScreen extends StatelessWidget {
                           ),
                           SizedBox(height: 6),
                           Text(
-                            'Голосом или текстом — около одной минуты',
+                            'Структурировано и без лишних данных — около минуты',
                             style: TextStyle(color: Color(0xFFDDE8EE), height: 1.35),
                           ),
                         ],
@@ -80,26 +90,58 @@ class TodayScreen extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.spa_outlined,
-                    size: 38,
-                    color: AppColors.teal,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Пока здесь спокойно',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Здесь появятся записи, к которым вы захотите вернуться, когда будет достаточно времени и внимания.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+              child: caseController.reflectionCount == 0
+                  ? Column(
+                      children: [
+                        const Icon(
+                          Icons.spa_outlined,
+                          size: 38,
+                          color: AppColors.teal,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Пока здесь спокойно',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Сохраняйте только моменты, которые продолжают удерживать ваше внимание.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Container(
+                          width: 54,
+                          height: 54,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.paleTeal,
+                            borderRadius: BorderRadius.circular(17),
+                          ),
+                          child: const Icon(Icons.auto_stories_outlined, color: AppColors.teal),
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${caseController.reflectionCount} профессиональных записей',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${caseController.supervisionQuestions.length} вопросов подготовлено к супервизии',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: 24),
@@ -123,17 +165,46 @@ class TodayScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
 
-  void _comingNext(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Быстрая фиксация появится в сборке 0.3.0'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  Future<void> _startCapture(BuildContext context) async {
+    var cases = caseController.cases;
+    if (cases.isEmpty) {
+      final created = await showCreateCaseSheet(context, caseController);
+      if (created == null || !context.mounted) return;
+      await openReflectionEditor(context, caseController, created.id);
+      return;
+    }
+
+    var caseId = cases.length == 1 ? cases.first.id : null;
+    if (caseId == null) {
+      caseId = await showModalBottomSheet<String>(
+        context: context,
+        useSafeArea: true,
+        builder: (context) => ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          children: [
+            Text('Для какого случая?', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 12),
+            ...cases.map(
+              (item) => ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(item.alias),
+                subtitle: Text(item.ageRange),
+                onTap: () => Navigator.pop(context, item.id),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (caseId != null && context.mounted) {
+      await openReflectionEditor(context, caseController, caseId);
+    }
   }
 }
 

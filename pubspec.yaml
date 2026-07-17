@@ -1,7 +1,7 @@
 name: supervision_pocket
 description: Local-first reflective practice companion for beginning child psychologists.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.7.0 <4.0.0"
@@ -10,7 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   crypto: ^3.0.6
+  cryptography: ^2.7.0
   flutter_secure_storage: ^10.0.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:supervision_pocket/features/cases/presentation/cases_screen.dart';
 import 'package:supervision_pocket/features/supervision/presentation/supervision_screen.dart';
 import 'package:supervision_pocket/features/today/presentation/today_screen.dart';
+import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 
 class MainShell extends StatefulWidget {
-  const MainShell({required this.onLock, super.key});
+  const MainShell({
+    required this.onLock,
+    required this.caseController,
+    super.key,
+  });
 
   final VoidCallback onLock;
+  final CaseController caseController;
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -18,9 +24,12 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      TodayScreen(onLock: widget.onLock),
-      const CasesScreen(),
-      const SupervisionScreen(),
+      TodayScreen(
+        onLock: widget.onLock,
+        caseController: widget.caseController,
+      ),
+      CasesScreen(controller: widget.caseController),
+      SupervisionScreen(controller: widget.caseController),
     ];
     return Scaffold(
       body: IndexedStack(index: _index, children: screens),
