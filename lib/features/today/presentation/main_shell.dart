@@ -8,12 +8,14 @@ class MainShell extends StatefulWidget {
   const MainShell({
     required this.onLock,
     required this.onChangeRole,
+    required this.onResetAll,
     required this.caseController,
     super.key,
   });
 
   final VoidCallback onLock;
   final VoidCallback onChangeRole;
+  final Future<void> Function() onResetAll;
   final CaseController caseController;
 
   @override
@@ -29,6 +31,7 @@ class _MainShellState extends State<MainShell> {
       TodayScreen(
         onLock: widget.onLock,
         onChangeRole: widget.onChangeRole,
+        onResetAll: widget.onResetAll,
         caseController: widget.caseController,
       ),
       CasesScreen(controller: widget.caseController),
