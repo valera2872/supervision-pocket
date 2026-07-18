@@ -12,6 +12,7 @@ abstract interface class SecurityStore {
   Future<bool> verifyPin(String pin);
   Future<String?> readRole();
   Future<void> saveRole(String role);
+  Future<void> clearAll();
 }
 
 class FlutterSecurityStore implements SecurityStore {
@@ -24,6 +25,8 @@ class FlutterSecurityStore implements SecurityStore {
   static const _pinSaltKey = 'pin_salt';
   static const _pinHashKey = 'pin_hash';
   static const _roleKey = 'professional_role';
+  static const _caseVaultKey = 'case_vault_master_key_v1';
+  static const _supervisorVaultKey = 'supervisor_vault_master_key_v1';
 
   @override
   Future<bool> hasAcceptedPrivacyRules() async {
@@ -66,6 +69,20 @@ class FlutterSecurityStore implements SecurityStore {
   @override
   Future<void> saveRole(String role) {
     return _storage.write(key: _roleKey, value: role);
+  }
+
+  @override
+  Future<void> clearAll() async {
+    for (final key in const [
+      _consentVersionKey,
+      _pinSaltKey,
+      _pinHashKey,
+      _roleKey,
+      _caseVaultKey,
+      _supervisorVaultKey,
+    ]) {
+      await _storage.delete(key: key);
+    }
   }
 
   String _hashPin(String pin, String salt) {
@@ -112,5 +129,12 @@ class MemorySecurityStore implements SecurityStore {
   @override
   Future<void> saveRole(String value) async {
     role = value;
+  }
+
+  @override
+  Future<void> clearAll() async {
+    consentVersion = null;
+    pin = null;
+    role = null;
   }
 }

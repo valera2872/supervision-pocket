@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/domain/case_models.dart';
+import 'package:supervision_pocket/features/transfer/presentation/request_transfer_flow.dart';
 
 class SupervisionScreen extends StatelessWidget {
   const SupervisionScreen({required this.controller, super.key});
@@ -63,7 +64,7 @@ class SupervisionScreen extends StatelessWidget {
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Ничего не отправляется автоматически. Перед передачей ещё раз проверьте, что в тексте нет настоящих имён и других данных клиента.',
+                              'Ничего не отправляется автоматически. Можно передать зашифрованный пакет в Supervision Pocket или обычный текст. Перед отправкой проверьте обезличивание.',
                             ),
                           ),
                         ],
@@ -138,7 +139,12 @@ class _QuestionCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () => _share(context),
+                    onPressed: () => showRequestTransferOptions(
+                      context,
+                      caseFile: caseFile,
+                      entry: entry,
+                      onShareAsText: () => _shareAsText(context),
+                    ),
                     icon: const Icon(Icons.send_outlined),
                     label: const Text('Передать супервизору'),
                   ),
@@ -157,13 +163,13 @@ class _QuestionCard extends StatelessWidget {
     );
   }
 
-  Future<void> _share(BuildContext context) async {
+  Future<void> _shareAsText(BuildContext context) async {
     try {
       await SharePlus.instance.share(
         ShareParams(
           text: _requestText(),
           subject: 'Запрос к супервизии: ${caseFile.alias}',
-          title: 'Передать запрос супервизору',
+          title: 'Передать запрос как текст',
         ),
       );
     } catch (_) {

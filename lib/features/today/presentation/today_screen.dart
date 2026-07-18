@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
+import 'package:supervision_pocket/core/widgets/reset_application_dialog.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/presentation/create_case_sheet.dart';
 import 'package:supervision_pocket/features/cases/presentation/reflection_editor_screen.dart';
@@ -8,12 +9,14 @@ class TodayScreen extends StatelessWidget {
   const TodayScreen({
     required this.onLock,
     required this.onChangeRole,
+    required this.onResetAll,
     required this.caseController,
     super.key,
   });
 
   final VoidCallback onLock;
   final VoidCallback onChangeRole;
+  final Future<void> Function() onResetAll;
   final CaseController caseController;
 
   @override
@@ -56,16 +59,43 @@ class TodayScreen extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    IconButton.filledTonal(
-                      onPressed: onChangeRole,
-                      tooltip: 'Сменить роль',
-                      icon: const Icon(Icons.swap_horiz_rounded),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filledTonal(
-                      onPressed: onLock,
-                      tooltip: 'Заблокировать',
-                      icon: const Icon(Icons.lock_outline_rounded),
+                    PopupMenuButton<String>(
+                      tooltip: 'Меню',
+                      icon: const Icon(Icons.more_horiz_rounded),
+                      onSelected: (value) async {
+                        if (value == 'role') onChangeRole();
+                        if (value == 'lock') onLock();
+                        if (value == 'reset') {
+                          await showResetApplicationDialog(
+                            context,
+                            onReset: onResetAll,
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'role',
+                          child: ListTile(
+                            leading: Icon(Icons.swap_horiz_rounded),
+                            title: Text('Сменить роль'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'reset',
+                          child: ListTile(
+                            leading: Icon(Icons.restart_alt_rounded),
+                            title: Text('Начать заново'),
+                            subtitle: Text('Удалить все локальные данные'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'lock',
+                          child: ListTile(
+                            leading: Icon(Icons.lock_outline_rounded),
+                            title: Text('Заблокировать'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

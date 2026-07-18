@@ -42,6 +42,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   Timer? _draftTimer;
   bool _saving = false;
   bool _submitted = false;
+  bool _clearing = false;
 
   @override
   void initState() {
@@ -82,6 +83,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   }
 
   void _scheduleDraft() {
+    if (_clearing) return;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(milliseconds: 650), () {
       unawaited(_saveDraft());
@@ -115,6 +117,56 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    if (_fields.every((field) => field.text.trim().isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Черновик уже пуст'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Очистить этот черновик?'),
+        content: const Text(
+          'Все надиктованные и введённые ответы на этом экране будут удалены. Карточка случая и ранее сохранённые эпизоды останутся.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Очистить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    _draftTimer?.cancel();
+    _clearing = true;
+    for (final field in _fields) {
+      field.clear();
+    }
+    try {
+      await widget.controller.clearDraft(widget.caseId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Черновик очищен'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      _clearing = false;
     }
   }
 
@@ -152,6 +204,14 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.close_rounded),
         ),
+        actions: [
+          IconButton(
+            onPressed: _saving ? null : _clearDraft,
+            tooltip: 'Очистить черновик',
+            icon: const Icon(Icons.delete_sweep_outlined),
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
       body: Form(
         key: _formKey,

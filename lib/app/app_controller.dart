@@ -108,6 +108,15 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resetApplication() async {
+    await _securityStore.clearAll();
+    _role = null;
+    _failedAttempts = 0;
+    _blockedUntil = null;
+    _gate = AppGate.onboarding;
+    notifyListeners();
+  }
+
   void lock() {
     if (_gate != AppGate.ready && _gate != AppGate.roleSelection) return;
     _gate = AppGate.locked;
