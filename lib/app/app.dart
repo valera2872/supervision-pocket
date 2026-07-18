@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supervision_pocket/app/app_controller.dart';
 import 'package:supervision_pocket/app/theme/app_theme.dart';
+import 'package:supervision_pocket/core/security/local_data_reset_service.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/lock/presentation/unlock_screen.dart';
 import 'package:supervision_pocket/features/onboarding/presentation/onboarding_flow.dart';
@@ -48,6 +49,13 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
     }
   }
 
+  Future<void> _resetAllData() async {
+    await LocalDataResetService().clearVaultFiles();
+    await widget.caseController.initialize();
+    await widget.supervisorController.initialize();
+    await widget.controller.resetApplication();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -74,10 +82,12 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
                     controller: widget.supervisorController,
                     onLock: widget.controller.lock,
                     onChangeRole: widget.controller.requestRoleSelection,
+                    onResetAll: _resetAllData,
                   )
                 : MainShell(
                     onLock: widget.controller.lock,
                     onChangeRole: widget.controller.requestRoleSelection,
+                    onResetAll: _resetAllData,
                     caseController: widget.caseController,
                   ),
           };
