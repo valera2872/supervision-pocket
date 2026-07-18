@@ -7,7 +7,7 @@ import 'package:supervision_pocket/features/lock/presentation/unlock_screen.dart
 import 'package:supervision_pocket/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:supervision_pocket/features/role/presentation/role_selection_screen.dart';
 import 'package:supervision_pocket/features/supervisor/application/supervisor_controller.dart';
-import 'package:supervision_pocket/features/supervisor/presentation/supervisor_shell.dart';
+import 'package:supervision_pocket/features/supervisor/presentation/supervisor_workspace_host.dart';
 import 'package:supervision_pocket/features/today/presentation/main_shell.dart';
 
 class SupervisionPocketApp extends StatefulWidget {
@@ -78,7 +78,7 @@ class _SupervisionPocketAppState extends State<SupervisionPocketApp>
                 onLock: widget.controller.lock,
               ),
             AppGate.ready => widget.controller.role == UserRole.supervisor
-                ? SupervisorShell(
+                ? SupervisorWorkspaceHost(
                     controller: widget.supervisorController,
                     onLock: widget.controller.lock,
                     onChangeRole: widget.controller.requestRoleSelection,
