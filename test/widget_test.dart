@@ -33,9 +33,12 @@ void main() {
     expect(find.text('Как вы будете работать?'), findsOneWidget);
     expect(find.text('Для психологов и супервизоров'), findsOneWidget);
     expect(find.text('Я психолог'), findsOneWidget);
-    expect(find.text('Я супервизор'), findsOneWidget);
 
-    await tester.tap(find.text('Я супервизор'));
+    final supervisorRole = find.text('Я супервизор');
+    await tester.ensureVisible(supervisorRole);
+    await tester.pumpAndSettle();
+    expect(supervisorRole, findsOneWidget);
+    await tester.tap(supervisorRole);
     await tester.pumpAndSettle();
 
     expect(
@@ -74,6 +77,11 @@ void main() {
 
     expect(find.text('Как вы будете работать?'), findsOneWidget);
     expect(find.text('Я психолог'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -280));
+    await tester.pumpAndSettle();
+
     expect(find.text('Я супервизор'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
