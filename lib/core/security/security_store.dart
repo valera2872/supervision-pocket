@@ -25,6 +25,8 @@ class FlutterSecurityStore implements SecurityStore {
   static const _pinSaltKey = 'pin_salt';
   static const _pinHashKey = 'pin_hash';
   static const _roleKey = 'professional_role';
+  static const _caseVaultKey = 'case_vault_master_key_v1';
+  static const _supervisorVaultKey = 'supervisor_vault_master_key_v1';
 
   @override
   Future<bool> hasAcceptedPrivacyRules() async {
@@ -71,10 +73,16 @@ class FlutterSecurityStore implements SecurityStore {
 
   @override
   Future<void> clearAll() async {
-    await _storage.delete(key: _consentVersionKey);
-    await _storage.delete(key: _pinSaltKey);
-    await _storage.delete(key: _pinHashKey);
-    await _storage.delete(key: _roleKey);
+    for (final key in const [
+      _consentVersionKey,
+      _pinSaltKey,
+      _pinHashKey,
+      _roleKey,
+      _caseVaultKey,
+      _supervisorVaultKey,
+    ]) {
+      await _storage.delete(key: key);
+    }
   }
 
   String _hashPin(String pin, String salt) {
