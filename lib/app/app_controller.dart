@@ -14,7 +14,7 @@ extension UserRoleValue on UserRole {
       };
 
   String get title => switch (this) {
-        UserRole.supervisee => 'Я психолог и прохожу супервизию',
+        UserRole.supervisee => 'Я психолог',
         UserRole.supervisor => 'Я супервизор',
       };
 
@@ -56,12 +56,14 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> finishOnboarding(String pin) async {
+  Future<void> finishOnboarding(String pin, UserRole role) async {
     await _securityStore.savePin(pin);
     await _securityStore.acceptPrivacyRules('1.0');
+    await _securityStore.saveRole(role.storageValue);
+    _role = role;
     _failedAttempts = 0;
     _blockedUntil = null;
-    _gate = _role == null ? AppGate.roleSelection : AppGate.ready;
+    _gate = AppGate.ready;
     notifyListeners();
   }
 
