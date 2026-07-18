@@ -75,4 +75,19 @@ void main() {
     expect(controller.gate, AppGate.ready);
     expect(controller.role, UserRole.supervisor);
   });
+
+  test('full reset removes pin role and consent', () async {
+    final store = MemorySecurityStore();
+    final controller = AppController(store);
+    await controller.initialize();
+    await controller.finishOnboarding('2468', UserRole.supervisor);
+
+    await controller.resetApplication();
+
+    expect(controller.gate, AppGate.onboarding);
+    expect(controller.role, isNull);
+    expect(await store.hasAcceptedPrivacyRules(), isFalse);
+    expect(await store.hasPin(), isFalse);
+    expect(await store.readRole(), isNull);
+  });
 }
