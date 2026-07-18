@@ -91,6 +91,15 @@ class CaseController extends ChangeNotifier {
     await _persist(notify: false);
   }
 
+  Future<void> clearDraft(String caseId) async {
+    final index = _indexOf(caseId);
+    _cases[index] = _cases[index].copyWith(
+      clearDraft: true,
+      updatedAt: DateTime.now(),
+    );
+    await _persist();
+  }
+
   Future<void> addReflection(String caseId, ReflectionDraft draft) async {
     final index = _indexOf(caseId);
     final current = _cases[index];
@@ -109,6 +118,11 @@ class CaseController extends ChangeNotifier {
       archived: true,
       updatedAt: DateTime.now(),
     );
+    await _persist();
+  }
+
+  Future<void> clearAll() async {
+    _cases.clear();
     await _persist();
   }
 
