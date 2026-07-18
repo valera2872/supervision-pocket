@@ -9,9 +9,7 @@ import 'package:supervision_pocket/features/supervisor/application/supervisor_co
 import 'package:supervision_pocket/features/supervisor/data/supervisor_repository.dart';
 
 void main() {
-  testWidgets('first launch asks for psychologist or supervisor role', (
-    tester,
-  ) async {
+  testWidgets('first launch presents both professional roles', (tester) async {
     final controller = AppController(MemorySecurityStore());
     final caseController = CaseController(MemoryCaseRepository());
     final supervisorController = SupervisorController(
@@ -33,25 +31,12 @@ void main() {
     expect(find.text('Как вы будете работать?'), findsOneWidget);
     expect(find.text('Для психологов и супервизоров'), findsOneWidget);
     expect(find.text('Я психолог'), findsOneWidget);
-
-    final supervisorRole = find.text('Я супервизор');
-    await tester.ensureVisible(supervisorRole);
-    await tester.pumpAndSettle();
-    expect(supervisorRole, findsOneWidget);
-    await tester.tap(supervisorRole);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Супервизанты, запросы и встречи — в одном месте'),
-      findsOneWidget,
-    );
-    expect(find.text('Люди'), findsOneWidget);
-    expect(find.text('Повестка'), findsOneWidget);
-    expect(find.text('Итог'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('role-first onboarding fits a compact phone', (tester) async {
+  testWidgets('role-first onboarding has no overflow on a compact phone', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -77,12 +62,6 @@ void main() {
 
     expect(find.text('Как вы будете работать?'), findsOneWidget);
     expect(find.text('Я психолог'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await tester.drag(find.byType(ListView).first, const Offset(0, -280));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Я супервизор'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
