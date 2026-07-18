@@ -9,27 +9,28 @@ void main() {
     expect(controller.gate, AppGate.onboarding);
   });
 
-  test('onboarding stores consent and asks for a role', () async {
+  test('onboarding stores consent pin and selected role', () async {
     final store = MemorySecurityStore();
     final controller = AppController(store);
     await controller.initialize();
-    await controller.finishOnboarding('2468');
-
-    expect(controller.gate, AppGate.roleSelection);
-    expect(await store.hasAcceptedPrivacyRules(), isTrue);
-    expect(await store.verifyPin('2468'), isTrue);
-  });
-
-  test('selected role is stored and opens the matching workspace', () async {
-    final store = MemorySecurityStore();
-    final controller = AppController(store);
-    await controller.initialize();
-    await controller.finishOnboarding('2468');
-    await controller.chooseRole(UserRole.supervisor);
+    await controller.finishOnboarding('2468', UserRole.supervisor);
 
     expect(controller.gate, AppGate.ready);
     expect(controller.role, UserRole.supervisor);
+    expect(await store.hasAcceptedPrivacyRules(), isTrue);
+    expect(await store.verifyPin('2468'), isTrue);
     expect(await store.readRole(), 'supervisor');
+  });
+
+  test('psychologist role opens psychologist workspace immediately', () async {
+    final store = MemorySecurityStore();
+    final controller = AppController(store);
+    await controller.initialize();
+    await controller.finishOnboarding('2468', UserRole.supervisee);
+
+    expect(controller.gate, AppGate.ready);
+    expect(controller.role, UserRole.supervisee);
+    expect(await store.readRole(), 'supervisee');
   });
 
   test('existing user starts locked and valid pin restores role', () async {
