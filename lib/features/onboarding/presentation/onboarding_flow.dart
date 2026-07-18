@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supervision_pocket/app/app_controller.dart';
 import 'package:supervision_pocket/app/theme/app_colors.dart';
 import 'package:supervision_pocket/core/widgets/step_dots.dart';
 import 'package:supervision_pocket/features/lock/presentation/create_pin_panel.dart';
@@ -6,7 +7,7 @@ import 'package:supervision_pocket/features/lock/presentation/create_pin_panel.d
 class OnboardingFlow extends StatefulWidget {
   const OnboardingFlow({required this.onCompleted, super.key});
 
-  final Future<void> Function(String pin) onCompleted;
+  final Future<void> Function(String pin, UserRole role) onCompleted;
 
   @override
   State<OnboardingFlow> createState() => _OnboardingFlowState();
@@ -14,8 +15,9 @@ class OnboardingFlow extends StatefulWidget {
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
   final _controller = PageController();
-  int _page = 0;
   final _checks = [false, false, false];
+  int _page = 0;
+  UserRole? _role;
 
   @override
   void dispose() {
@@ -30,6 +32,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
+  void _back() {
+    _controller.previousPage(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _selectRole(UserRole role) {
+    setState(() => _role = role);
+    _next();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,21 +56,34 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (value) => setState(() => _page = value),
                 children: [
-                  _WelcomePage(onNext: _next),
+                  _RoleEntryPage(onSelected: _selectRole),
+                  _RoleOverviewPage(
+                    role: _role ?? UserRole.supervisee,
+                    onBack: _back,
+                    onNext: _next,
+                  ),
                   _PrivacyPage(
                     checks: _checks,
                     onChanged: (index, value) {
                       setState(() => _checks[index] = value);
                     },
+                    onBack: _back,
                     onNext: _next,
                   ),
-                  _PinPage(onCompleted: widget.onCompleted),
+                  _PinPage(
+                    role: _role ?? UserRole.supervisee,
+                    onBack: _back,
+                    onCompleted: (pin) => widget.onCompleted(
+                      pin,
+                      _role ?? UserRole.supervisee,
+                    ),
+                  ),
                 ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 18),
-              child: StepDots(current: _page, total: 3),
+              padding: const EdgeInsets.only(bottom: 14, top: 6),
+              child: StepDots(current: _page, total: 4),
             ),
           ],
         ),
@@ -65,53 +92,48 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 }
 
-class _WelcomePage extends StatelessWidget {
-  const _WelcomePage({required this.onNext});
+class _RoleEntryPage extends StatelessWidget {
+  const _RoleEntryPage({required this.onSelected});
 
-  final VoidCallback onNext;
+  final ValueChanged<UserRole> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxHeight < 690;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 34),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const _BrandHeader(),
-                  SizedBox(height: compact ? 18 : 26),
-                  SizedBox(
-                    height: compact ? 302 : 352,
-                    child: const _PremiumHero(),
-                  ),
-                  SizedBox(height: compact ? 18 : 24),
-                  Text(
-                    'Зафиксируйте сложный эпизод голосом. Приложение поможет превратить его в ясный вопрос к супервизору.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: AppColors.ink,
-                          height: 1.45,
-                        ),
-                  ),
-                  const SizedBox(height: 15),
-                  const _PrivacyLine(),
-                  const Spacer(),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: onNext,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    label: const Text('Продолжить'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+      children: [
+        const _BrandHeader(),
+        const SizedBox(height: 34),
+        Text(
+          'Как вы будете работать?',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Выберите роль, чтобы открыть нужный кабинет. Её можно изменить позже без удаления записей.',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 24),
+        _RoleCard(
+          icon: Icons.edit_note_rounded,
+          title: 'Я психолог',
+          description:
+              'Записывать сложные эпизоды, готовить вопросы и передавать супервизору только выбранные материалы.',
+          onTap: () => onSelected(UserRole.supervisee),
+        ),
+        const SizedBox(height: 14),
+        _RoleCard(
+          icon: Icons.groups_2_outlined,
+          title: 'Я супервизор',
+          description:
+              'Вести супервизантов, собирать запросы, готовить встречи и фиксировать итоги.',
+          onTap: () => onSelected(UserRole.supervisor),
+        ),
+        const SizedBox(height: 22),
+        const _SecurityLine(
+          text: 'Данные хранятся локально и защищаются PIN',
+        ),
+      ],
     );
   }
 }
@@ -163,7 +185,7 @@ class _BrandHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Для психологов, которые проходят супервизию',
+                'Для психологов и супервизоров',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.muted,
                     ),
@@ -176,207 +198,328 @@ class _BrandHeader extends StatelessWidget {
   }
 }
 
-class _PremiumHero extends StatelessWidget {
-  const _PremiumHero();
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF153B57), Color(0xFF275B68)],
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: .22),
-            blurRadius: 30,
-            offset: const Offset(0, 16),
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.outline),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0B173B57),
+                blurRadius: 22,
+                offset: Offset(0, 9),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Stack(
-          children: [
-            const Positioned(
-              right: -76,
-              top: -84,
-              child: _GlowCircle(size: 230, opacity: .07),
-            ),
-            const Positioned(
-              left: -58,
-              bottom: -86,
-              child: _GlowCircle(size: 205, opacity: .055),
-            ),
-            Positioned(
-              right: 24,
-              top: 25,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .11),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withValues(alpha: .14)),
+                  color: AppColors.paleTeal,
+                  borderRadius: BorderRadius.circular(17),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Icon(icon, color: AppColors.teal, size: 27),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.shield_outlined, size: 16, color: Colors.white),
-                    SizedBox(width: 6),
                     Text(
-                      'Личная запись',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            height: 1.42,
+                          ),
                     ),
                   ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 25, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: AppColors.warmAccent,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(
-                      Icons.mic_none_rounded,
-                      color: Colors.white,
-                      size: 25,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'После консультации —\nяснее к супервизии',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                          color: Colors.white,
-                          fontSize: 31,
-                          height: 1.08,
-                          letterSpacing: -.7,
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Сохраните то, что осталось с вами.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withValues(alpha: .78),
-                        ),
-                  ),
-                  const SizedBox(height: 22),
-                  const Row(
-                    children: [
-                      Expanded(child: _FlowStep(number: '01', label: 'Эпизод')),
-                      _FlowArrow(),
-                      Expanded(child: _FlowStep(number: '02', label: 'Реакция')),
-                      _FlowArrow(),
-                      Expanded(child: _FlowStep(number: '03', label: 'Вопрос')),
-                    ],
-                  ),
-                ],
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: AppColors.navy,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _GlowCircle extends StatelessWidget {
-  const _GlowCircle({required this.size, required this.opacity});
+class _RoleOverviewPage extends StatelessWidget {
+  const _RoleOverviewPage({
+    required this.role,
+    required this.onBack,
+    required this.onNext,
+  });
 
-  final double size;
-  final double opacity;
+  final UserRole role;
+  final VoidCallback onBack;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          width: 34,
-          color: Colors.white.withValues(alpha: opacity),
+    final isSupervisor = role == UserRole.supervisor;
+    final title = isSupervisor
+        ? 'Супервизанты, запросы и встречи — в одном месте'
+        : 'От сложного эпизода — к ясному вопросу';
+    final description = isSupervisor
+        ? 'Ведите карточки супервизантов, собирайте повестку, сохраняйте личные заметки и общий итог встречи.'
+        : 'После консультации зафиксируйте, что произошло, как вы отреагировали и что важно обсудить на супервизии.';
+    final steps = isSupervisor
+        ? const ['Люди', 'Повестка', 'Итог']
+        : const ['Эпизод', 'Реакция', 'Вопрос'];
+    final features = isSupervisor
+        ? const [
+            'Карточки и история работы',
+            'Личная подготовка супервизора',
+            'Общие итоги и следующие шаги',
+          ]
+        : const [
+            'Голосовой ввод или текст',
+            'Личные записи остаются закрытыми',
+            'Передаётся только выбранный материал',
+          ];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Изменить роль'),
+          ),
         ),
-      ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF153B57), Color(0xFF275B68)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navy.withValues(alpha: .2),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.warmAccent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      isSupervisor
+                          ? Icons.groups_2_outlined
+                          : Icons.edit_note_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isSupervisor
+                          ? 'КАБИНЕТ СУПЕРВИЗОРА'
+                          : 'КАБИНЕТ ПСИХОЛОГА',
+                      style: const TextStyle(
+                        color: Color(0xFFD6E5E9),
+                        fontSize: 11,
+                        letterSpacing: 1.05,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: Colors.white,
+                      fontSize: 28,
+                      height: 1.12,
+                      letterSpacing: -.45,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                description,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.white.withValues(alpha: .8),
+                      height: 1.45,
+                    ),
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var index = 0; index < steps.length; index++)
+                    _FlowChip(number: index + 1, label: steps[index]),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        for (final feature in features)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 11),
+            child: _FeatureLine(text: feature),
+          ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: AppColors.paleBlue,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.sync_lock_outlined, color: AppColors.navy),
+              SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  'Пока оба кабинета работают локально. Защищённое соединение между устройствами будет добавлено на серверном этапе.',
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        FilledButton.icon(
+          onPressed: onNext,
+          icon: const Icon(Icons.arrow_forward_rounded),
+          label: const Text('Продолжить'),
+        ),
+      ],
     );
   }
 }
 
-class _FlowStep extends StatelessWidget {
-  const _FlowStep({required this.number, required this.label});
+class _FlowChip extends StatelessWidget {
+  const _FlowChip({required this.number, required this.label});
 
-  final String number;
+  final int number;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: .09),
+        color: Colors.white.withValues(alpha: .1),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: .11)),
+        border: Border.all(color: Colors.white.withValues(alpha: .12)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            number,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .52),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: .8,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
+      child: Text(
+        '0$number  $label',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 }
 
-class _FlowArrow extends StatelessWidget {
-  const _FlowArrow();
+class _FeatureLine extends StatelessWidget {
+  const _FeatureLine({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: Icon(
-        Icons.arrow_forward_rounded,
-        size: 15,
-        color: Colors.white.withValues(alpha: .42),
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: AppColors.paleTeal,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            size: 18,
+            color: AppColors.teal,
+          ),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _PrivacyLine extends StatelessWidget {
-  const _PrivacyLine();
+class _SecurityLine extends StatelessWidget {
+  const _SecurityLine({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -398,7 +541,7 @@ class _PrivacyLine extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Локально · обезличенно · под PIN',
+            text,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w600,
@@ -414,11 +557,13 @@ class _PrivacyPage extends StatelessWidget {
   const _PrivacyPage({
     required this.checks,
     required this.onChanged,
+    required this.onBack,
     required this.onNext,
   });
 
   final List<bool> checks;
   final void Function(int index, bool value) onChanged;
+  final VoidCallback onBack;
   final VoidCallback onNext;
 
   @override
@@ -440,15 +585,24 @@ class _PrivacyPage extends StatelessWidget {
     ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(22, 34, 22, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Назад'),
+          ),
+        ),
+        const SizedBox(height: 8),
         Text(
           'Сначала — безопасность',
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         const SizedBox(height: 12),
         Text(
-          'Материал остаётся на этом устройстве. Перед началом подтвердите три правила.',
+          'Перед началом подтвердите три правила работы с профессиональными материалами.',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 22),
@@ -474,7 +628,7 @@ class _PrivacyPage extends StatelessWidget {
             ),
           );
         }),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -488,7 +642,7 @@ class _PrivacyPage extends StatelessWidget {
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'В этой версии нет аккаунта, рекламы, облачной синхронизации и автоматической отправки материалов.',
+                  'В этой версии нет рекламы, автоматической отправки материалов и доступа к вашим данным у третьих лиц.',
                 ),
               ),
             ],
@@ -505,25 +659,48 @@ class _PrivacyPage extends StatelessWidget {
 }
 
 class _PinPage extends StatelessWidget {
-  const _PinPage({required this.onCompleted});
+  const _PinPage({
+    required this.role,
+    required this.onBack,
+    required this.onCompleted,
+  });
 
+  final UserRole role;
+  final VoidCallback onBack;
   final Future<void> Function(String pin) onCompleted;
 
   @override
   Widget build(BuildContext context) {
+    final workspace = role == UserRole.supervisor
+        ? 'кабинет супервизора'
+        : 'кабинет психолога';
     return ListView(
-      padding: const EdgeInsets.fromLTRB(22, 34, 22, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
       children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Назад'),
+          ),
+        ),
+        const SizedBox(height: 8),
         Text(
           'Защитите вход',
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         const SizedBox(height: 12),
         Text(
-          'Создайте PIN из 4–6 цифр. Если PIN будет забыт, восстановить локальные записи без удаления данных нельзя.',
+          'Создайте PIN из 4–6 цифр. Он будет защищать $workspace и локальные записи.',
           style: Theme.of(context).textTheme.bodyLarge,
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 8),
+        Text(
+          'Если PIN будет забыт, восстановить зашифрованные данные без их удаления нельзя.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 24),
         CreatePinPanel(onCompleted: onCompleted),
       ],
     );
