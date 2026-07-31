@@ -37,25 +37,22 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Generate dedicated review signing key
-        run: |
-          keytool -genkeypair -v \
-            -keystore android/app/review.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -dname "CN=Supervision Pocket Review,O=Supervision Pocket,C=ME" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000
-
-      - name: Upload review signing key seed
-        uses: actions/upload-artifact@v4
+      - name: Restore dedicated review signing key
+        uses: actions/download-artifact@v4
         with:
           name: supervision-pocket-review-signing-key-seed
-          path: android/app/review.keystore
-          if-no-files-found: error
-          retention-days: 90
+          path: android/app
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: valera2872/supervision-pocket
+          run-id: 30635720524
+
+      - name: Verify review signing key
+        run: |
+          test -f android/app/review.keystore
+          keytool -list \
+            -keystore android/app/review.keystore \
+            -storepass android \
+            -alias androiddebugkey
 
       - name: Format sources
         run: dart format lib test
