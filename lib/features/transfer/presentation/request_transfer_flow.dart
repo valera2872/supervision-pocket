@@ -79,6 +79,7 @@ Future<void> _sharePackage(
         caseAlias: caseFile.alias,
         ageRange: caseFile.ageRange,
         caseContext: caseFile.context,
+        mode: entry.mode.name,
         observedFact: entry.observedFact,
         interpretation: entry.interpretation,
         feeling: entry.feeling,
@@ -86,6 +87,14 @@ Future<void> _sharePackage(
         actionTaken: entry.actionTaken,
         stuckPoint: entry.stuckPoint,
         question: entry.supervisionQuestion,
+        clientRequest: entry.clientRequest,
+        relevantContext: entry.relevantContext,
+        currentDynamics: entry.currentDynamics,
+        workingHypothesis: entry.workingHypothesis,
+        previousAttempts: entry.previousAttempts,
+        resources: entry.resources,
+        ethicalContext: entry.ethicalContext,
+        requestType: entry.requestType.name,
         createdAt: entry.createdAt,
       ),
     );
@@ -107,7 +116,8 @@ Future<void> _sharePackage(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
+                color:
+                    Theme.of(dialogContext).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SelectableText(

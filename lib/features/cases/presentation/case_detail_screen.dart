@@ -28,10 +28,30 @@ class CaseDetailScreen extends StatelessWidget {
           appBar: AppBar(
             title: Text(caseFile.alias),
             actions: [
-              IconButton(
-                onPressed: () => _confirmArchive(context),
-                tooltip: 'Архивировать',
-                icon: const Icon(Icons.archive_outlined),
+              PopupMenuButton<String>(
+                tooltip: 'Действия со случаем',
+                onSelected: (value) {
+                  if (value == 'archive') _confirmArchive(context);
+                  if (value == 'delete') _confirmDeleteCase(context);
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'archive',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.archive_outlined),
+                      title: Text('Переместить в архив'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.delete_outline_rounded),
+                      title: Text('Удалить случай'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -64,15 +84,32 @@ class CaseDetailScreen extends StatelessWidget {
                 ...entries.map(
                   (entry) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _ReflectionCard(entry: entry),
+                    child: _ReflectionCard(
+                      entry: entry,
+                      onEdit: () => openReflectionEditor(
+                        context,
+                        controller,
+                        caseId,
+                        entryId: entry.id,
+                      ),
+                      onDelete: () => _confirmDeleteEntry(context, entry),
+                    ),
                   ),
                 ),
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => openReflectionEditor(context, controller, caseId),
-            icon: Icon(caseFile.draft == null ? Icons.add_rounded : Icons.edit_note_rounded),
-            label: Text(caseFile.draft == null ? 'Новая рефлексия' : 'Продолжить черновик'),
+            icon: Icon(
+              caseFile.draft == null
+                  ? Icons.add_rounded
+                  : Icons.edit_note_rounded,
+            ),
+            label: Text(
+              caseFile.draft == null
+                  ? 'Новая запись'
+                  : 'Продолжить черновик',
+            ),
           ),
         );
       },
@@ -88,14 +125,73 @@ class CaseDetailScreen extends StatelessWidget {
           'Карточка исчезнет из активных случаев, но останется в защищённом хранилище.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('В архив')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('В архив'),
+          ),
         ],
       ),
     );
     if (confirmed == true) {
       await controller.archive(caseId);
       if (context.mounted) Navigator.pop(context);
+    }
+  }
+
+  Future<void> _confirmDeleteCase(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить случай безвозвратно?'),
+        content: const Text(
+          'Будут удалены карточка, все записи и черновик этого случая. Отменить действие нельзя.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await controller.deleteCase(caseId);
+    if (context.mounted) Navigator.pop(context);
+  }
+
+  Future<void> _confirmDeleteEntry(
+    BuildContext context,
+    ReflectionEntry entry,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить эту запись?'),
+        content: const Text(
+          'Запись исчезнет из хронологии и списка запросов к супервизии. Отменить действие нельзя.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await controller.deleteReflection(caseId, entry.id);
     }
   }
 }
@@ -136,7 +232,10 @@ class _CaseHeader extends StatelessWidget {
           ),
           if (caseFile.context.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Text(caseFile.context, style: Theme.of(context).textTheme.bodyLarge),
+            Text(
+              caseFile.context,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
           ],
         ],
       ),
@@ -156,10 +255,13 @@ class _NoReflections extends StatelessWidget {
           children: [
             const Icon(Icons.notes_rounded, size: 38, color: AppColors.teal),
             const SizedBox(height: 12),
-            Text('Записей пока нет', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Записей пока нет',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
-              'После сложной консультации сохраните наблюдаемый факт, свою реакцию и вопрос к супервизору.',
+              'Сохраните быстрый эпизод после консультации или сразу подготовьте развёрнутый кейс к встрече.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -171,9 +273,15 @@ class _NoReflections extends StatelessWidget {
 }
 
 class _ReflectionCard extends StatefulWidget {
-  const _ReflectionCard({required this.entry});
+  const _ReflectionCard({
+    required this.entry,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final ReflectionEntry entry;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   State<_ReflectionCard> createState() => _ReflectionCardState();
@@ -185,6 +293,7 @@ class _ReflectionCardState extends State<_ReflectionCard> {
   @override
   Widget build(BuildContext context) {
     final entry = widget.entry;
+    final full = entry.mode == ReflectionMode.casePreparation;
     return Card(
       child: InkWell(
         onTap: () => setState(() => expanded = !expanded),
@@ -196,6 +305,8 @@ class _ReflectionCardState extends State<_ReflectionCard> {
             children: [
               Row(
                 children: [
+                  _ModeChip(full: full),
+                  const SizedBox(width: 9),
                   Expanded(
                     child: Text(
                       _formatDate(entry.createdAt),
@@ -205,14 +316,30 @@ class _ReflectionCardState extends State<_ReflectionCard> {
                       ),
                     ),
                   ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Действия с записью',
+                    onSelected: (value) {
+                      if (value == 'edit') widget.onEdit();
+                      if (value == 'delete') widget.onDelete();
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Изменить')),
+                      PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                    ],
+                  ),
                   Icon(
-                    expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
                     color: AppColors.muted,
                   ),
                 ],
               ),
               const SizedBox(height: 9),
-              Text(entry.observedFact, style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                entry.observedFact,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               if (entry.supervisionQuestion.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -224,7 +351,11 @@ class _ReflectionCardState extends State<_ReflectionCard> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.forum_outlined, size: 20, color: AppColors.navy),
+                      const Icon(
+                        Icons.forum_outlined,
+                        size: 20,
+                        color: AppColors.navy,
+                      ),
                       const SizedBox(width: 9),
                       Expanded(child: Text(entry.supervisionQuestion)),
                     ],
@@ -232,14 +363,78 @@ class _ReflectionCardState extends State<_ReflectionCard> {
                 ),
               ],
               if (expanded) ...[
-                _Detail(label: 'Моя интерпретация', value: entry.interpretation),
-                _Detail(label: 'Что я почувствовал(а)', value: entry.feeling),
+                if (full) ...[
+                  _Detail(label: 'Запрос клиента', value: entry.clientRequest),
+                  _Detail(
+                    label: 'Значимый контекст',
+                    value: entry.relevantContext,
+                  ),
+                  _Detail(
+                    label: 'Текущая динамика',
+                    value: entry.currentDynamics,
+                  ),
+                ],
+                _Detail(
+                  label: 'Моя интерпретация',
+                  value: entry.interpretation,
+                ),
+                _Detail(
+                  label: 'Что я почувствовал(а)',
+                  value: entry.feeling,
+                ),
                 _Detail(label: 'Первый импульс', value: entry.impulse),
                 _Detail(label: 'Что я сделал(а)', value: entry.actionTaken),
-                _Detail(label: 'Где возник тупик', value: entry.stuckPoint),
+                if (full) ...[
+                  _Detail(
+                    label: 'Что уже пробовал(а)',
+                    value: entry.previousAttempts,
+                  ),
+                  _Detail(label: 'Ресурсы', value: entry.resources),
+                  _Detail(
+                    label: 'Рабочая гипотеза',
+                    value: entry.workingHypothesis,
+                  ),
+                  _Detail(
+                    label: 'Этика, границы и безопасность',
+                    value: entry.ethicalContext,
+                  ),
+                  _Detail(
+                    label: 'Тип запроса',
+                    value: _requestTypeLabel(entry.requestType),
+                  ),
+                ],
+                _Detail(
+                  label: 'Что осталось непонятным',
+                  value: entry.stuckPoint,
+                ),
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({required this.full});
+
+  final bool full;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: full ? AppColors.paleBlue : AppColors.paleTeal,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        full ? 'Кейс' : 'Быстро',
+        style: TextStyle(
+          color: full ? AppColors.navy : AppColors.teal,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -254,7 +449,7 @@ class _Detail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (value.isEmpty) return const SizedBox.shrink();
+    if (value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 14),
       child: Column(
@@ -273,3 +468,13 @@ String _formatDate(DateTime value) {
   String two(int number) => number.toString().padLeft(2, '0');
   return '${two(value.day)}.${two(value.month)}.${value.year} · ${two(value.hour)}:${two(value.minute)}';
 }
+
+String _requestTypeLabel(SupervisionRequestType type) => switch (type) {
+      SupervisionRequestType.understandingCase => 'Понимание случая',
+      SupervisionRequestType.therapistReaction => 'Реакция психолога',
+      SupervisionRequestType.therapeuticRelationship => 'Отношения и процесс',
+      SupervisionRequestType.interventionChoice => 'Выбор интервенции',
+      SupervisionRequestType.ethicsAndRisk => 'Этика, границы или риск',
+      SupervisionRequestType.settingAndContract => 'Сеттинг или контракт',
+      SupervisionRequestType.other => 'Другое / не определено',
+    };

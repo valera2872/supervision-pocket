@@ -32,7 +32,7 @@ class SupervisionScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Здесь собраны эпизоды, в которых вы сформулировали вопрос супервизору.',
+                        'Здесь собраны подготовленные вопросы и материалы, которые вы решили вынести на встречу.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -64,7 +64,7 @@ class SupervisionScreen extends StatelessWidget {
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Ничего не отправляется автоматически. Можно передать зашифрованный пакет в Supervision Pocket или обычный текст. Перед отправкой проверьте обезличивание.',
+                              'Ничего не отправляется автоматически. Перед передачей проверьте, что в тексте нет имён, адресов, школы, места работы и других узнаваемых деталей.',
                             ),
                           ),
                         ],
@@ -95,46 +95,129 @@ class SupervisionScreen extends StatelessWidget {
   }
 }
 
-class _QuestionCard extends StatelessWidget {
+class _QuestionCard extends StatefulWidget {
   const _QuestionCard({required this.caseFile, required this.entry});
 
   final CaseFile caseFile;
   final ReflectionEntry entry;
 
   @override
+  State<_QuestionCard> createState() => _QuestionCardState();
+}
+
+class _QuestionCardState extends State<_QuestionCard> {
+  bool expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final caseFile = widget.caseFile;
+    final entry = widget.entry;
+    final full = entry.mode == ReflectionMode.casePreparation;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.paleTeal,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Text(
-                '${caseFile.alias} · ${caseFile.ageRange}',
-                style: const TextStyle(
-                  color: AppColors.teal,
-                  fontWeight: FontWeight.w700,
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.paleTeal,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    '${caseFile.alias} · ${caseFile.ageRange}',
+                    style: const TextStyle(
+                      color: AppColors.teal,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+                if (full)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.paleBlue,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: const Text(
+                      'Подготовленный кейс',
+                      style: TextStyle(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             Text(
               entry.supervisionQuestion,
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 14),
-            _Part(label: 'Что произошло', value: entry.observedFact),
-            _Part(label: 'Как я это понял(а)', value: entry.interpretation),
-            _Part(label: 'Что я почувствовал(а)', value: entry.feeling),
-            _Part(label: 'Как я отреагировал(а)', value: entry.actionTaken),
-            _Part(label: 'Что осталось непонятным', value: entry.stuckPoint),
-            const SizedBox(height: 5),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: () => setState(() => expanded = !expanded),
+              icon: Icon(
+                expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+              ),
+              label: Text(expanded ? 'Скрыть материал' : 'Показать материал'),
+            ),
+            if (expanded) ...[
+              if (full) ...[
+                _Part(label: 'Запрос клиента', value: entry.clientRequest),
+                _Part(
+                  label: 'Значимый контекст',
+                  value: entry.relevantContext,
+                ),
+                _Part(
+                  label: 'Текущая динамика',
+                  value: entry.currentDynamics,
+                ),
+              ],
+              _Part(label: 'Наблюдаемый эпизод', value: entry.observedFact),
+              _Part(label: 'Моя интерпретация', value: entry.interpretation),
+              _Part(label: 'Моя реакция', value: entry.feeling),
+              _Part(label: 'Первый импульс', value: entry.impulse),
+              _Part(label: 'Что я сделал(а)', value: entry.actionTaken),
+              if (full) ...[
+                _Part(
+                  label: 'Что уже пробовал(а)',
+                  value: entry.previousAttempts,
+                ),
+                _Part(label: 'Ресурсы', value: entry.resources),
+                _Part(
+                  label: 'Рабочая гипотеза',
+                  value: entry.workingHypothesis,
+                ),
+                _Part(
+                  label: 'Этика, границы и безопасность',
+                  value: entry.ethicalContext,
+                ),
+                _Part(
+                  label: 'Тип запроса',
+                  value: _requestTypeLabel(entry.requestType),
+                ),
+              ],
+              _Part(
+                label: 'Что осталось непонятным',
+                value: entry.stuckPoint,
+              ),
+            ],
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -168,7 +251,7 @@ class _QuestionCard extends StatelessWidget {
       await SharePlus.instance.share(
         ShareParams(
           text: _requestText(),
-          subject: 'Запрос к супервизии: ${caseFile.alias}',
+          subject: 'Запрос к супервизии: ${widget.caseFile.alias}',
           title: 'Передать запрос как текст',
         ),
       );
@@ -198,21 +281,35 @@ class _QuestionCard extends StatelessWidget {
   }
 
   String _requestText() {
+    final caseFile = widget.caseFile;
+    final entry = widget.entry;
     final parts = <String>[
       'Запрос к супервизии',
       'Случай: ${caseFile.alias}, ${caseFile.ageRange}',
       if (caseFile.context.isNotEmpty) 'Краткий контекст: ${caseFile.context}',
-      'Что произошло: ${entry.observedFact}',
+      if (entry.clientRequest.isNotEmpty)
+        'Запрос клиента: ${entry.clientRequest}',
+      if (entry.relevantContext.isNotEmpty)
+        'Значимый контекст: ${entry.relevantContext}',
+      if (entry.currentDynamics.isNotEmpty)
+        'Текущая динамика: ${entry.currentDynamics}',
+      'Наблюдаемый эпизод: ${entry.observedFact}',
       if (entry.interpretation.isNotEmpty)
-        'Как я это понял(а): ${entry.interpretation}',
-      if (entry.feeling.isNotEmpty)
-        'Что я почувствовал(а): ${entry.feeling}',
-      if (entry.impulse.isNotEmpty)
-        'Что мне захотелось сделать: ${entry.impulse}',
+        'Моя интерпретация: ${entry.interpretation}',
+      if (entry.feeling.isNotEmpty) 'Моя реакция: ${entry.feeling}',
+      if (entry.impulse.isNotEmpty) 'Первый импульс: ${entry.impulse}',
       if (entry.actionTaken.isNotEmpty)
-        'Как я отреагировал(а): ${entry.actionTaken}',
+        'Что я сделал(а): ${entry.actionTaken}',
+      if (entry.previousAttempts.isNotEmpty)
+        'Что уже пробовал(а): ${entry.previousAttempts}',
+      if (entry.resources.isNotEmpty) 'Ресурсы: ${entry.resources}',
+      if (entry.workingHypothesis.isNotEmpty)
+        'Рабочая гипотеза: ${entry.workingHypothesis}',
+      if (entry.ethicalContext.isNotEmpty)
+        'Этика, границы или безопасность: ${entry.ethicalContext}',
       if (entry.stuckPoint.isNotEmpty)
         'Что осталось непонятным: ${entry.stuckPoint}',
+      'Тип запроса: ${_requestTypeLabel(entry.requestType)}',
       'Мой вопрос: ${entry.supervisionQuestion}',
     ];
     return parts.join('\n\n');
@@ -227,7 +324,7 @@ class _Part extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (value.isEmpty) return const SizedBox.shrink();
+    if (value.trim().isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 11),
       child: Column(
@@ -274,7 +371,7 @@ class _EmptySupervision extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Запишите сложный эпизод и сформулируйте вопрос. После сохранения он появится здесь.',
+            'Запишите сложный эпизод или подготовьте кейс и сформулируйте конкретный вопрос.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -283,3 +380,13 @@ class _EmptySupervision extends StatelessWidget {
     );
   }
 }
+
+String _requestTypeLabel(SupervisionRequestType type) => switch (type) {
+      SupervisionRequestType.understandingCase => 'Понимание случая',
+      SupervisionRequestType.therapistReaction => 'Реакция психолога',
+      SupervisionRequestType.therapeuticRelationship => 'Отношения и процесс',
+      SupervisionRequestType.interventionChoice => 'Выбор интервенции',
+      SupervisionRequestType.ethicsAndRisk => 'Этика, границы или риск',
+      SupervisionRequestType.settingAndContract => 'Сеттинг или контракт',
+      SupervisionRequestType.other => 'Другое / не определено',
+    };

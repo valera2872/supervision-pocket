@@ -62,6 +62,15 @@ class CaseController extends ChangeNotifier {
     return null;
   }
 
+  ReflectionEntry? findEntry(String caseId, String entryId) {
+    final caseFile = findById(caseId);
+    if (caseFile == null) return null;
+    for (final entry in caseFile.entries) {
+      if (entry.id == entryId) return entry;
+    }
+    return null;
+  }
+
   Future<CaseFile> createCase({
     required String alias,
     required String ageRange,
@@ -112,12 +121,54 @@ class CaseController extends ChangeNotifier {
     await _persist();
   }
 
+  Future<void> updateReflection(
+    String caseId,
+    String entryId,
+    ReflectionDraft draft,
+  ) async {
+    final index = _indexOf(caseId);
+    final current = _cases[index];
+    final existingIndex = current.entries.indexWhere(
+      (item) => item.id == entryId,
+    );
+    if (existingIndex < 0) throw StateError('Reflection not found');
+    final existing = current.entries[existingIndex];
+    final entries = current.entries
+        .map(
+          (item) => item.id == entryId
+              ? draft.toEntry(entryId, createdAt: existing.createdAt)
+              : item,
+        )
+        .toList();
+    _cases[index] = current.copyWith(
+      entries: entries,
+      updatedAt: DateTime.now(),
+    );
+    await _persist();
+  }
+
+  Future<void> deleteReflection(String caseId, String entryId) async {
+    final index = _indexOf(caseId);
+    final current = _cases[index];
+    final entries = current.entries.where((item) => item.id != entryId).toList();
+    _cases[index] = current.copyWith(
+      entries: entries,
+      updatedAt: DateTime.now(),
+    );
+    await _persist();
+  }
+
   Future<void> archive(String caseId) async {
     final index = _indexOf(caseId);
     _cases[index] = _cases[index].copyWith(
       archived: true,
       updatedAt: DateTime.now(),
     );
+    await _persist();
+  }
+
+  Future<void> deleteCase(String caseId) async {
+    _cases.removeWhere((item) => item.id == caseId);
     await _persist();
   }
 

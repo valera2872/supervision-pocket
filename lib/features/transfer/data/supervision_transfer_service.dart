@@ -18,11 +18,21 @@ class TransferRequestPayload {
     required this.stuckPoint,
     required this.question,
     required this.createdAt,
+    this.mode = 'quick',
+    this.clientRequest = '',
+    this.relevantContext = '',
+    this.currentDynamics = '',
+    this.workingHypothesis = '',
+    this.previousAttempts = '',
+    this.resources = '',
+    this.ethicalContext = '',
+    this.requestType = 'other',
   });
 
   final String caseAlias;
   final String ageRange;
   final String caseContext;
+  final String mode;
   final String observedFact;
   final String interpretation;
   final String feeling;
@@ -30,12 +40,21 @@ class TransferRequestPayload {
   final String actionTaken;
   final String stuckPoint;
   final String question;
+  final String clientRequest;
+  final String relevantContext;
+  final String currentDynamics;
+  final String workingHypothesis;
+  final String previousAttempts;
+  final String resources;
+  final String ethicalContext;
+  final String requestType;
   final DateTime createdAt;
 
   Map<String, Object?> toJson() => {
         'caseAlias': caseAlias,
         'ageRange': ageRange,
         'caseContext': caseContext,
+        'mode': mode,
         'observedFact': observedFact,
         'interpretation': interpretation,
         'feeling': feeling,
@@ -43,6 +62,14 @@ class TransferRequestPayload {
         'actionTaken': actionTaken,
         'stuckPoint': stuckPoint,
         'question': question,
+        'clientRequest': clientRequest,
+        'relevantContext': relevantContext,
+        'currentDynamics': currentDynamics,
+        'workingHypothesis': workingHypothesis,
+        'previousAttempts': previousAttempts,
+        'resources': resources,
+        'ethicalContext': ethicalContext,
+        'requestType': requestType,
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -51,6 +78,7 @@ class TransferRequestPayload {
       caseAlias: json['caseAlias'] as String? ?? 'Случай',
       ageRange: json['ageRange'] as String? ?? '',
       caseContext: json['caseContext'] as String? ?? '',
+      mode: json['mode'] as String? ?? 'quick',
       observedFact: json['observedFact'] as String? ?? '',
       interpretation: json['interpretation'] as String? ?? '',
       feeling: json['feeling'] as String? ?? '',
@@ -58,6 +86,14 @@ class TransferRequestPayload {
       actionTaken: json['actionTaken'] as String? ?? '',
       stuckPoint: json['stuckPoint'] as String? ?? '',
       question: json['question'] as String? ?? '',
+      clientRequest: json['clientRequest'] as String? ?? '',
+      relevantContext: json['relevantContext'] as String? ?? '',
+      currentDynamics: json['currentDynamics'] as String? ?? '',
+      workingHypothesis: json['workingHypothesis'] as String? ?? '',
+      previousAttempts: json['previousAttempts'] as String? ?? '',
+      resources: json['resources'] as String? ?? '',
+      ethicalContext: json['ethicalContext'] as String? ?? '',
+      requestType: json['requestType'] as String? ?? 'other',
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.now(),
     );
@@ -67,12 +103,22 @@ class TransferRequestPayload {
     final parts = <String>[
       'Случай: $caseAlias${ageRange.isEmpty ? '' : ', $ageRange'}',
       if (caseContext.isNotEmpty) 'Краткий контекст: $caseContext',
-      if (observedFact.isNotEmpty) 'Что произошло: $observedFact',
-      if (interpretation.isNotEmpty) 'Как это понял психолог: $interpretation',
+      if (clientRequest.isNotEmpty) 'Запрос клиента: $clientRequest',
+      if (relevantContext.isNotEmpty) 'Значимый контекст: $relevantContext',
+      if (currentDynamics.isNotEmpty) 'Текущая динамика: $currentDynamics',
+      if (observedFact.isNotEmpty) 'Наблюдаемый эпизод: $observedFact',
+      if (interpretation.isNotEmpty) 'Интерпретация психолога: $interpretation',
       if (feeling.isNotEmpty) 'Чувства психолога: $feeling',
       if (impulse.isNotEmpty) 'Первый импульс: $impulse',
       if (actionTaken.isNotEmpty) 'Реакция психолога: $actionTaken',
+      if (previousAttempts.isNotEmpty) 'Что уже пробовали: $previousAttempts',
+      if (resources.isNotEmpty) 'Ресурсы и то, что работает: $resources',
+      if (workingHypothesis.isNotEmpty)
+        'Рабочая гипотеза: $workingHypothesis',
+      if (ethicalContext.isNotEmpty)
+        'Этика, границы или безопасность: $ethicalContext',
       if (stuckPoint.isNotEmpty) 'Что осталось непонятным: $stuckPoint',
+      if (requestType != 'other') 'Тип запроса: ${_requestTypeLabel(requestType)}',
     ];
     return parts.join('\n\n');
   }
@@ -193,3 +239,13 @@ class SupervisionTransferService {
     return List<int>.generate(length, (_) => random.nextInt(256));
   }
 }
+
+String _requestTypeLabel(String value) => switch (value) {
+      'understandingCase' => 'Понимание случая',
+      'therapistReaction' => 'Реакция психолога',
+      'therapeuticRelationship' => 'Отношения и процесс',
+      'interventionChoice' => 'Выбор интервенции',
+      'ethicsAndRisk' => 'Этика, границы или риск',
+      'settingAndContract' => 'Сеттинг или контракт',
+      _ => 'Другое',
+    };

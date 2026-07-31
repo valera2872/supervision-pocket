@@ -224,6 +224,39 @@ class SupervisorController extends ChangeNotifier {
     );
   }
 
+  Future<void> saveRequestPreparation({
+    required String requestId,
+    required List<SupervisionFocus> selectedFocuses,
+    required SupervisorRole suggestedRole,
+    required String missingInformation,
+    required String preparationQuestions,
+    required String ethicalOrSystemicNotes,
+  }) async {
+    if (findRequest(requestId) == null) {
+      throw StateError('Request not found');
+    }
+    final updated = _workspace.requests
+        .map(
+          (item) => item.id == requestId
+              ? item.copyWith(
+                  selectedFocuses: selectedFocuses,
+                  suggestedRole: suggestedRole,
+                  missingInformation: missingInformation.trim(),
+                  preparationQuestions: preparationQuestions.trim(),
+                  ethicalOrSystemicNotes: ethicalOrSystemicNotes.trim(),
+                )
+              : item,
+        )
+        .toList();
+    await _commit(
+      SupervisorWorkspace(
+        supervisees: _workspace.supervisees,
+        requests: updated,
+        meetings: _workspace.meetings,
+      ),
+    );
+  }
+
   Future<SupervisionMeeting> createMeeting({
     required String superviseeId,
     required DateTime scheduledAt,
@@ -252,7 +285,12 @@ class SupervisorController extends ChangeNotifier {
     required DateTime scheduledAt,
     required String privatePreparationNotes,
     required String sharedSummary,
+    required String whatBecameClear,
+    required String perspectivesConsidered,
+    required String workingHypothesis,
+    required String remainingUncertainty,
     required String nextStep,
+    required String attentionMarker,
     required String followUpQuestion,
   }) async {
     final updated = _workspace.meetings
@@ -262,8 +300,36 @@ class SupervisorController extends ChangeNotifier {
                   scheduledAt: scheduledAt,
                   privatePreparationNotes: privatePreparationNotes.trim(),
                   sharedSummary: sharedSummary.trim(),
+                  whatBecameClear: whatBecameClear.trim(),
+                  perspectivesConsidered: perspectivesConsidered.trim(),
+                  workingHypothesis: workingHypothesis.trim(),
+                  remainingUncertainty: remainingUncertainty.trim(),
                   nextStep: nextStep.trim(),
+                  attentionMarker: attentionMarker.trim(),
                   followUpQuestion: followUpQuestion.trim(),
+                )
+              : item,
+        )
+        .toList();
+    await _commit(
+      SupervisorWorkspace(
+        supervisees: _workspace.supervisees,
+        requests: _workspace.requests,
+        meetings: updated,
+      ),
+    );
+  }
+
+  Future<void> saveFollowUp({
+    required String meetingId,
+    required String result,
+  }) async {
+    final updated = _workspace.meetings
+        .map(
+          (item) => item.id == meetingId
+              ? item.copyWith(
+                  followUpResult: result.trim(),
+                  followUpCheckedAt: DateTime.now(),
                 )
               : item,
         )
