@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   analyze-test-build:
@@ -36,11 +37,25 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Restore stable alpha signing key
-        uses: actions/cache@v4
+      - name: Generate dedicated review signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore android/app/review.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Supervision Pocket Review,O=Supervision Pocket,C=ME" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
+
+      - name: Upload review signing key seed
+        uses: actions/upload-artifact@v4
         with:
-          path: ~/.android/debug.keystore
-          key: supervision-pocket-alpha-debug-keystore-v1
+          name: supervision-pocket-review-signing-key-seed
+          path: android/app/review.keystore
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Format sources
         run: dart format lib test
