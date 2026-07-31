@@ -8,6 +8,18 @@ enum SupervisionRequestStatus {
 
 enum SupervisionMeetingStatus { planned, completed }
 
+enum SupervisionFocus {
+  client,
+  interventions,
+  therapeuticRelationship,
+  therapistProcess,
+  supervisionRelationship,
+  supervisorProcess,
+  widerContext,
+}
+
+enum SupervisorRole { facilitator, consultant, teacher, expert }
+
 class SuperviseeProfile {
   const SuperviseeProfile({
     required this.id,
@@ -94,6 +106,11 @@ class SharedSupervisionRequest {
     required this.receivedAt,
     this.status = SupervisionRequestStatus.newRequest,
     this.meetingId,
+    this.selectedFocuses = const [],
+    this.suggestedRole = SupervisorRole.facilitator,
+    this.missingInformation = '',
+    this.preparationQuestions = '',
+    this.ethicalOrSystemicNotes = '',
   });
 
   final String id;
@@ -103,11 +120,21 @@ class SharedSupervisionRequest {
   final DateTime receivedAt;
   final SupervisionRequestStatus status;
   final String? meetingId;
+  final List<SupervisionFocus> selectedFocuses;
+  final SupervisorRole suggestedRole;
+  final String missingInformation;
+  final String preparationQuestions;
+  final String ethicalOrSystemicNotes;
 
   SharedSupervisionRequest copyWith({
     SupervisionRequestStatus? status,
     String? meetingId,
     bool clearMeeting = false,
+    List<SupervisionFocus>? selectedFocuses,
+    SupervisorRole? suggestedRole,
+    String? missingInformation,
+    String? preparationQuestions,
+    String? ethicalOrSystemicNotes,
   }) {
     return SharedSupervisionRequest(
       id: id,
@@ -117,6 +144,12 @@ class SharedSupervisionRequest {
       receivedAt: receivedAt,
       status: status ?? this.status,
       meetingId: clearMeeting ? null : meetingId ?? this.meetingId,
+      selectedFocuses: selectedFocuses ?? this.selectedFocuses,
+      suggestedRole: suggestedRole ?? this.suggestedRole,
+      missingInformation: missingInformation ?? this.missingInformation,
+      preparationQuestions: preparationQuestions ?? this.preparationQuestions,
+      ethicalOrSystemicNotes:
+          ethicalOrSystemicNotes ?? this.ethicalOrSystemicNotes,
     );
   }
 
@@ -128,21 +161,45 @@ class SharedSupervisionRequest {
         'receivedAt': receivedAt.toIso8601String(),
         'status': status.name,
         'meetingId': meetingId,
+        'selectedFocuses': selectedFocuses.map((item) => item.name).toList(),
+        'suggestedRole': suggestedRole.name,
+        'missingInformation': missingInformation,
+        'preparationQuestions': preparationQuestions,
+        'ethicalOrSystemicNotes': ethicalOrSystemicNotes,
       };
 
   factory SharedSupervisionRequest.fromJson(Map<String, Object?> json) {
-    final statusName = json['status'] as String?;
+    final rawFocuses = json['selectedFocuses'] as List<Object?>? ?? const [];
     return SharedSupervisionRequest(
       id: json['id']! as String,
       superviseeId: json['superviseeId']! as String,
       question: json['question']! as String,
       context: json['context'] as String? ?? '',
       receivedAt: DateTime.parse(json['receivedAt']! as String),
-      status: SupervisionRequestStatus.values.firstWhere(
-        (item) => item.name == statusName,
-        orElse: () => SupervisionRequestStatus.newRequest,
+      status: _parseEnum(
+        SupervisionRequestStatus.values,
+        json['status'] as String?,
+        SupervisionRequestStatus.newRequest,
       ),
       meetingId: json['meetingId'] as String?,
+      selectedFocuses: rawFocuses
+          .map(
+            (item) => _parseEnum(
+              SupervisionFocus.values,
+              item as String?,
+              SupervisionFocus.client,
+            ),
+          )
+          .toList(),
+      suggestedRole: _parseEnum(
+        SupervisorRole.values,
+        json['suggestedRole'] as String?,
+        SupervisorRole.facilitator,
+      ),
+      missingInformation: json['missingInformation'] as String? ?? '',
+      preparationQuestions: json['preparationQuestions'] as String? ?? '',
+      ethicalOrSystemicNotes:
+          json['ethicalOrSystemicNotes'] as String? ?? '',
     );
   }
 }
@@ -157,8 +214,15 @@ class SupervisionMeeting {
     this.agendaRequestIds = const [],
     this.privatePreparationNotes = '',
     this.sharedSummary = '',
+    this.whatBecameClear = '',
+    this.perspectivesConsidered = '',
+    this.workingHypothesis = '',
+    this.remainingUncertainty = '',
     this.nextStep = '',
+    this.attentionMarker = '',
     this.followUpQuestion = '',
+    this.followUpResult = '',
+    this.followUpCheckedAt,
     this.completedAt,
   });
 
@@ -170,8 +234,15 @@ class SupervisionMeeting {
   final List<String> agendaRequestIds;
   final String privatePreparationNotes;
   final String sharedSummary;
+  final String whatBecameClear;
+  final String perspectivesConsidered;
+  final String workingHypothesis;
+  final String remainingUncertainty;
   final String nextStep;
+  final String attentionMarker;
   final String followUpQuestion;
+  final String followUpResult;
+  final DateTime? followUpCheckedAt;
   final DateTime? completedAt;
 
   SupervisionMeeting copyWith({
@@ -180,8 +251,16 @@ class SupervisionMeeting {
     List<String>? agendaRequestIds,
     String? privatePreparationNotes,
     String? sharedSummary,
+    String? whatBecameClear,
+    String? perspectivesConsidered,
+    String? workingHypothesis,
+    String? remainingUncertainty,
     String? nextStep,
+    String? attentionMarker,
     String? followUpQuestion,
+    String? followUpResult,
+    DateTime? followUpCheckedAt,
+    bool clearFollowUpCheckedAt = false,
     DateTime? completedAt,
     bool clearCompletedAt = false,
   }) {
@@ -195,8 +274,19 @@ class SupervisionMeeting {
       privatePreparationNotes:
           privatePreparationNotes ?? this.privatePreparationNotes,
       sharedSummary: sharedSummary ?? this.sharedSummary,
+      whatBecameClear: whatBecameClear ?? this.whatBecameClear,
+      perspectivesConsidered:
+          perspectivesConsidered ?? this.perspectivesConsidered,
+      workingHypothesis: workingHypothesis ?? this.workingHypothesis,
+      remainingUncertainty:
+          remainingUncertainty ?? this.remainingUncertainty,
       nextStep: nextStep ?? this.nextStep,
+      attentionMarker: attentionMarker ?? this.attentionMarker,
       followUpQuestion: followUpQuestion ?? this.followUpQuestion,
+      followUpResult: followUpResult ?? this.followUpResult,
+      followUpCheckedAt: clearFollowUpCheckedAt
+          ? null
+          : followUpCheckedAt ?? this.followUpCheckedAt,
       completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
     );
   }
@@ -210,30 +300,48 @@ class SupervisionMeeting {
         'agendaRequestIds': agendaRequestIds,
         'privatePreparationNotes': privatePreparationNotes,
         'sharedSummary': sharedSummary,
+        'whatBecameClear': whatBecameClear,
+        'perspectivesConsidered': perspectivesConsidered,
+        'workingHypothesis': workingHypothesis,
+        'remainingUncertainty': remainingUncertainty,
         'nextStep': nextStep,
+        'attentionMarker': attentionMarker,
         'followUpQuestion': followUpQuestion,
+        'followUpResult': followUpResult,
+        'followUpCheckedAt': followUpCheckedAt?.toIso8601String(),
         'completedAt': completedAt?.toIso8601String(),
       };
 
   factory SupervisionMeeting.fromJson(Map<String, Object?> json) {
-    final statusName = json['status'] as String?;
     final rawAgenda = json['agendaRequestIds'] as List<Object?>? ?? const [];
     final completedAt = json['completedAt'] as String?;
+    final followUpCheckedAt = json['followUpCheckedAt'] as String?;
     return SupervisionMeeting(
       id: json['id']! as String,
       superviseeId: json['superviseeId']! as String,
       scheduledAt: DateTime.parse(json['scheduledAt']! as String),
       createdAt: DateTime.parse(json['createdAt']! as String),
-      status: SupervisionMeetingStatus.values.firstWhere(
-        (item) => item.name == statusName,
-        orElse: () => SupervisionMeetingStatus.planned,
+      status: _parseEnum(
+        SupervisionMeetingStatus.values,
+        json['status'] as String?,
+        SupervisionMeetingStatus.planned,
       ),
       agendaRequestIds: rawAgenda.cast<String>(),
       privatePreparationNotes:
           json['privatePreparationNotes'] as String? ?? '',
       sharedSummary: json['sharedSummary'] as String? ?? '',
+      whatBecameClear: json['whatBecameClear'] as String? ?? '',
+      perspectivesConsidered:
+          json['perspectivesConsidered'] as String? ?? '',
+      workingHypothesis: json['workingHypothesis'] as String? ?? '',
+      remainingUncertainty: json['remainingUncertainty'] as String? ?? '',
       nextStep: json['nextStep'] as String? ?? '',
+      attentionMarker: json['attentionMarker'] as String? ?? '',
       followUpQuestion: json['followUpQuestion'] as String? ?? '',
+      followUpResult: json['followUpResult'] as String? ?? '',
+      followUpCheckedAt: followUpCheckedAt == null
+          ? null
+          : DateTime.tryParse(followUpCheckedAt),
       completedAt: completedAt == null ? null : DateTime.parse(completedAt),
     );
   }
@@ -284,4 +392,11 @@ class SupervisorWorkspace {
           .toList(),
     );
   }
+}
+
+T _parseEnum<T extends Enum>(List<T> values, String? name, T fallback) {
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  return fallback;
 }
