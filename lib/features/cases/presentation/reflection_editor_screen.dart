@@ -50,8 +50,10 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   bool _saving = false;
   bool _submitted = false;
   bool _clearing = false;
+  bool _anonymizationConfirmed = false;
 
   bool get _editing => widget.entryId != null;
+  bool get _full => _mode == ReflectionMode.casePreparation;
 
   @override
   void initState() {
@@ -78,14 +80,12 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
         source.resources,
         source.ethicalContext,
       ];
-      for (var i = 0; i < _fields.length; i++) {
-        _fields[i].text = values[i];
+      for (var index = 0; index < _fields.length; index++) {
+        _fields[index].text = values[index];
       }
     }
-    if (!_editing) {
-      for (final field in _fields) {
-        field.addListener(_scheduleDraft);
-      }
+    for (final field in _fields) {
+      field.addListener(_onFieldChanged);
     }
   }
 
@@ -93,23 +93,42 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   void dispose() {
     _draftTimer?.cancel();
     if (!_submitted && !_editing) {
-      final draft = _draft();
       unawaited(
-        widget.controller.saveDraft(widget.caseId, draft).catchError((_) {}),
+        widget.controller.saveDraft(widget.caseId, _draft()).catchError((_) {}),
       );
     }
     for (final field in _fields) {
-      field.dispose();
+      field
+        ..removeListener(_onFieldChanged)
+        ..dispose();
     }
     super.dispose();
   }
 
+  void _onFieldChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+    if (!_editing && !_clearing) {
+      _scheduleDraft();
+    }
+  }
+
   void _scheduleDraft() {
-    if (_clearing || _editing) return;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(milliseconds: 650), () {
       unawaited(_saveDraft());
     });
+  }
+
+  void _changeMode(ReflectionMode value) {
+    if (_mode == value) {
+      return;
+    }
+    setState(() => _mode = value);
+    if (!_editing) {
+      _scheduleDraft();
+    }
   }
 
   ReflectionDraft _draft() => ReflectionDraft(
@@ -133,17 +152,21 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
       );
 
   Future<void> _saveDraft() async {
-    if (_editing) return;
+    if (_editing) {
+      return;
+    }
     try {
       await widget.controller.saveDraft(widget.caseId, _draft());
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           const SnackBar(
             content: Text(
-              'Не удалось сохранить последние изменения. Проверьте свободное место и продолжите запись.',
+              'Не удалось сохранить последние изменения. Текст остаётся на экране.',
             ),
             behavior: SnackBarBehavior.floating,
           ),
@@ -168,7 +191,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
         content: Text(
           _editing
               ? 'Текст исчезнет с экрана, но сохранённая запись изменится только после нажатия «Сохранить изменения».'
-              : 'Все надиктованные и введённые ответы на этом экране будут удалены. Карточка случая и ранее сохранённые эпизоды останутся.',
+              : 'Все введённые и надиктованные ответы будут удалены. Карточка случая и ранее сохранённые записи останутся.',
         ),
         actions: [
           TextButton(
@@ -182,7 +205,9 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     _draftTimer?.cancel();
     _clearing = true;
@@ -191,10 +216,15 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
     }
     setState(() {
       _requestType = SupervisionRequestType.other;
+      _anonymizationConfirmed = false;
     });
     try {
-      if (!_editing) await widget.controller.clearDraft(widget.caseId);
-      if (!mounted) return;
+      if (!_editing) {
+        await widget.controller.clearDraft(widget.caseId);
+      }
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Поля очищены'),
@@ -207,7 +237,9 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     _draftTimer?.cancel();
     setState(() => _saving = true);
     try {
@@ -221,9 +253,13 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
         await widget.controller.addReflection(widget.caseId, _draft());
       }
       _submitted = true;
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -239,7 +275,6 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final caseFile = widget.controller.findById(widget.caseId);
-    final full = _mode == ReflectionMode.casePreparation;
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -271,172 +306,36 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
             ),
             const SizedBox(height: 7),
             Text(
-              full
-                  ? 'Соберите кейс к встрече: от контекста и запроса клиента до своей гипотезы и конкретного вопроса супервизору.'
-                  : 'Быстро зафиксируйте эпизод сразу после консультации. Все поля, кроме описания события, можно пропустить.',
+              _full
+                  ? 'Подготовьте материал к встрече по смысловым этапам. Заполняйте только то, что помогает понять запрос.'
+                  : 'Быстро сохраните сложный эпизод после консультации. Все поля, кроме описания события, можно пропустить.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 18),
-            SegmentedButton<ReflectionMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ReflectionMode.quick,
-                  icon: Icon(Icons.bolt_outlined),
-                  label: Text('Быстро'),
-                ),
-                ButtonSegment(
-                  value: ReflectionMode.casePreparation,
-                  icon: Icon(Icons.fact_check_outlined),
-                  label: Text('Подготовить кейс'),
-                ),
-              ],
-              selected: {_mode},
-              showSelectedIcon: false,
-              onSelectionChanged: (selection) {
-                setState(() => _mode = selection.first);
-                _scheduleDraft();
+            _ModeSelector(
+              selected: _mode,
+              onChanged: _changeMode,
+            ),
+            const SizedBox(height: 16),
+            const _VisibilityBanner(),
+            const SizedBox(height: 16),
+            const _SeparationHint(),
+            const SizedBox(height: 16),
+            if (_full) _buildFullPreparation() else _buildQuickReflection(),
+            const SizedBox(height: 16),
+            _ReadinessCard(
+              full: _full,
+              hasEpisode: _fields[0].text.trim().isNotEmpty,
+              hasQuestion: _fields[6].text.trim().isNotEmpty,
+              hasContext: !_full ||
+                  [_fields[7], _fields[8], _fields[9]]
+                      .any((field) => field.text.trim().isNotEmpty),
+              anonymizationConfirmed: _anonymizationConfirmed,
+              onAnonymizationChanged: (value) {
+                setState(() => _anonymizationConfirmed = value);
               },
             ),
-            const SizedBox(height: 18),
-            const _SeparationHint(),
-            const SizedBox(height: 18),
-            if (full) ...[
-              const _SectionLabel(
-                icon: Icons.person_search_outlined,
-                title: 'Контекст клиента и работы',
-              ),
-              _ReflectionField(
-                controller: _fields[7],
-                number: '1',
-                label: 'С чем пришёл клиент?',
-                hint:
-                    'Запрос клиента своими словами, без идентифицирующих деталей',
-              ),
-              _ReflectionField(
-                controller: _fields[8],
-                number: '2',
-                label: 'Что важно знать о контексте?',
-                hint:
-                    'Только сведения, которые действительно влияют на понимание случая',
-              ),
-              _ReflectionField(
-                controller: _fields[9],
-                number: '3',
-                label: 'Что происходит сейчас?',
-                hint:
-                    'Динамика работы, изменения, повторяющиеся темы или трудности',
-              ),
-              const _SectionLabel(
-                icon: Icons.visibility_outlined,
-                title: 'Ключевой эпизод',
-              ),
-            ],
-            _ReflectionField(
-              controller: _fields[0],
-              number: full ? '4' : '1',
-              label: 'Что произошло?',
-              hint:
-                  'Что можно было увидеть или услышать — без объяснений и диагнозов',
-              isRequired: true,
-            ),
-            _ReflectionField(
-              controller: _fields[1],
-              number: full ? '5' : '2',
-              label: 'Как я это понял(а)?',
-              hint:
-                  'Моя интерпретация, предположение или объяснение ситуации',
-            ),
-            _ReflectionField(
-              controller: _fields[2],
-              number: full ? '6' : '3',
-              label: 'Что я почувствовал(а)?',
-              hint:
-                  'Например: растерянность, раздражение, тревогу или бессилие',
-            ),
-            _ReflectionField(
-              controller: _fields[3],
-              number: full ? '7' : '4',
-              label: 'Что мне захотелось сделать?',
-              hint: 'Первый импульс, даже если я ему не последовал(а)',
-            ),
-            _ReflectionField(
-              controller: _fields[4],
-              number: full ? '8' : '5',
-              label: 'Как я отреагировал(а)?',
-              hint:
-                  'Что я сказал(а), сделал(а) или намеренно не сделал(а)',
-            ),
-            if (full) ...[
-              const _SectionLabel(
-                icon: Icons.psychology_alt_outlined,
-                title: 'Профессиональное осмысление',
-              ),
-              _ReflectionField(
-                controller: _fields[11],
-                number: '9',
-                label: 'Что я уже пробовал(а)?',
-                hint: 'Интервенции, способы разговора и их результат',
-              ),
-              _ReflectionField(
-                controller: _fields[12],
-                number: '10',
-                label: 'Что работает или поддерживает?',
-                hint:
-                    'Ресурсы клиента, терапевтического контакта и вашей работы',
-              ),
-              _ReflectionField(
-                controller: _fields[10],
-                number: '11',
-                label: 'Моя рабочая гипотеза',
-                hint:
-                    'Предположение, которое нужно проверить, а не готовый вывод',
-              ),
-              _ReflectionField(
-                controller: _fields[13],
-                number: '12',
-                label: 'Есть ли вопрос границ, этики или безопасности?',
-                hint:
-                    'Конфиденциальность, риск, контракт, компетентность или организационный контекст',
-              ),
-            ],
-            _ReflectionField(
-              controller: _fields[5],
-              number: full ? '13' : '6',
-              label: 'Что осталось непонятным?',
-              hint:
-                  'Где я сомневаюсь, застрял(а) или не понимаю, как двигаться дальше',
-            ),
-            if (full) ...[
-              DropdownButtonFormField<SupervisionRequestType>(
-                initialValue: _requestType,
-                decoration: const InputDecoration(
-                  labelText: 'Какого рода помощь нужна?',
-                  border: OutlineInputBorder(),
-                ),
-                items: SupervisionRequestType.values
-                    .map(
-                      (type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(_requestTypeLabel(type)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() => _requestType = value);
-                  _scheduleDraft();
-                },
-              ),
-              const SizedBox(height: 17),
-            ],
-            _ReflectionField(
-              controller: _fields[6],
-              number: full ? '14' : '7',
-              label: 'Что я хочу спросить у супервизора?',
-              hint:
-                  'Один конкретный вопрос, на который можно работать во время встречи',
-              accent: true,
-            ),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -450,7 +349,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
                   child: Text(
                     _editing
                         ? 'Изменения сохранятся только после подтверждения'
-                        : 'Черновик сохраняется автоматически на этом устройстве',
+                        : 'Черновик автоматически сохраняется на этом устройстве',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -472,6 +371,343 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
               : const Icon(Icons.check_rounded),
           label: Text(_editing ? 'Сохранить изменения' : 'Сохранить запись'),
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuickReflection() {
+    return Column(
+      children: [
+        _ReflectionField(
+          controller: _fields[0],
+          number: '1',
+          label: 'Что произошло?',
+          hint: 'Что можно было увидеть или услышать — без объяснений',
+          isRequired: true,
+        ),
+        _ReflectionField(
+          controller: _fields[1],
+          number: '2',
+          label: 'Как я это понял(а)?',
+          hint: 'Моё предположение или объяснение ситуации',
+        ),
+        _ReflectionField(
+          controller: _fields[2],
+          number: '3',
+          label: 'Что я почувствовал(а)?',
+          hint: 'Например: растерянность, раздражение, тревогу или бессилие',
+        ),
+        _ReflectionField(
+          controller: _fields[3],
+          number: '4',
+          label: 'Что мне захотелось сделать?',
+          hint: 'Первый импульс, даже если я ему не последовал(а)',
+        ),
+        _ReflectionField(
+          controller: _fields[4],
+          number: '5',
+          label: 'Как я отреагировал(а)?',
+          hint: 'Что я сказал(а), сделал(а) или намеренно не сделал(а)',
+        ),
+        _ReflectionField(
+          controller: _fields[5],
+          number: '6',
+          label: 'Что осталось непонятным?',
+          hint: 'Где я сомневаюсь или не понимаю, как двигаться дальше',
+        ),
+        _ReflectionField(
+          controller: _fields[6],
+          number: '7',
+          label: 'Что я хочу спросить у супервизора?',
+          hint: 'Один конкретный вопрос для ближайшей встречи',
+          accent: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullPreparation() {
+    return Column(
+      children: [
+        _CaseSection(
+          title: '1. Контекст клиента и работы',
+          subtitle: _sectionProgress([7, 8, 9]),
+          icon: Icons.person_search_outlined,
+          initiallyExpanded: true,
+          children: [
+            _ReflectionField(
+              controller: _fields[7],
+              label: 'С чем пришёл клиент?',
+              hint: 'Запрос клиента без идентифицирующих деталей',
+            ),
+            _ReflectionField(
+              controller: _fields[8],
+              label: 'Что важно знать о контексте?',
+              hint: 'Только сведения, влияющие на понимание случая',
+            ),
+            _ReflectionField(
+              controller: _fields[9],
+              label: 'Что происходит сейчас?',
+              hint: 'Динамика работы, изменения и повторяющиеся трудности',
+            ),
+          ],
+        ),
+        _CaseSection(
+          title: '2. Ключевой эпизод',
+          subtitle: _sectionProgress([0, 1]),
+          icon: Icons.visibility_outlined,
+          initiallyExpanded: true,
+          children: [
+            _ReflectionField(
+              controller: _fields[0],
+              label: 'Что произошло?',
+              hint: 'Наблюдаемые слова и действия — без объяснений',
+              isRequired: true,
+            ),
+            _ReflectionField(
+              controller: _fields[1],
+              label: 'Как я это понял(а)?',
+              hint: 'Моя интерпретация или предположение',
+            ),
+          ],
+        ),
+        _CaseSection(
+          title: '3. Моя реакция',
+          subtitle: _sectionProgress([2, 3, 4]),
+          icon: Icons.self_improvement_outlined,
+          children: [
+            _ReflectionField(
+              controller: _fields[2],
+              label: 'Что я почувствовал(а)?',
+              hint: 'Эмоции и телесная реакция',
+            ),
+            _ReflectionField(
+              controller: _fields[3],
+              label: 'Что мне захотелось сделать?',
+              hint: 'Первый импульс, даже если я ему не последовал(а)',
+            ),
+            _ReflectionField(
+              controller: _fields[4],
+              label: 'Как я отреагировал(а)?',
+              hint: 'Что я реально сказал(а), сделал(а) или не сделал(а)',
+            ),
+          ],
+        ),
+        _CaseSection(
+          title: '4. Профессиональное осмысление',
+          subtitle: _sectionProgress([11, 12, 10, 13, 5]),
+          icon: Icons.psychology_alt_outlined,
+          children: [
+            _ReflectionField(
+              controller: _fields[11],
+              label: 'Что я уже пробовал(а)?',
+              hint: 'Интервенции и их результат',
+            ),
+            _ReflectionField(
+              controller: _fields[12],
+              label: 'Что работает или поддерживает?',
+              hint: 'Ресурсы клиента, контакта и вашей работы',
+            ),
+            _ReflectionField(
+              controller: _fields[10],
+              label: 'Моя рабочая гипотеза',
+              hint: 'Предположение для проверки, а не готовый вывод',
+            ),
+            _ReflectionField(
+              controller: _fields[13],
+              label: 'Есть ли вопрос границ, этики или безопасности?',
+              hint: 'Риск, контракт, компетентность или организационный контекст',
+            ),
+            _ReflectionField(
+              controller: _fields[5],
+              label: 'Что осталось непонятным?',
+              hint: 'Где я сомневаюсь или застрял(а)',
+            ),
+          ],
+        ),
+        _CaseSection(
+          title: '5. Запрос на супервизию',
+          subtitle: _fields[6].text.trim().isEmpty
+              ? 'Нужна конкретная формулировка'
+              : 'Вопрос сформулирован',
+          icon: Icons.forum_outlined,
+          initiallyExpanded: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 17),
+              child: DropdownButtonFormField<SupervisionRequestType>(
+                initialValue: _requestType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Какого рода помощь нужна?',
+                  border: OutlineInputBorder(),
+                ),
+                items: SupervisionRequestType.values
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(
+                          _requestTypeLabel(type),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() => _requestType = value);
+                  if (!_editing) {
+                    _scheduleDraft();
+                  }
+                },
+              ),
+            ),
+            _ReflectionField(
+              controller: _fields[6],
+              label: 'Что я хочу спросить у супервизора?',
+              hint: 'Один вопрос, с которым можно работать во время встречи',
+              accent: true,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _sectionProgress(List<int> indexes) {
+    final completed = indexes
+        .where((index) => _fields[index].text.trim().isNotEmpty)
+        .length;
+    if (completed == 0) {
+      return 'Не заполнено — можно пропустить';
+    }
+    return 'Заполнено $completed из ${indexes.length}';
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final ReflectionMode selected;
+  final ValueChanged<ReflectionMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _ModeOption(
+          title: 'Быстрая запись',
+          subtitle: 'Сохранить один сложный эпизод за пару минут',
+          icon: Icons.bolt_outlined,
+          selected: selected == ReflectionMode.quick,
+          onTap: () => onChanged(ReflectionMode.quick),
+        ),
+        const SizedBox(height: 9),
+        _ModeOption(
+          title: 'Подготовить кейс',
+          subtitle: 'Собрать контекст, гипотезу и вопрос к встрече',
+          icon: Icons.fact_check_outlined,
+          selected: selected == ReflectionMode.casePreparation,
+          onTap: () => onChanged(ReflectionMode.casePreparation),
+        ),
+      ],
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  const _ModeOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.paleBlue : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? AppColors.navy : AppColors.outline,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? AppColors.navy : AppColors.teal),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? AppColors.navy : AppColors.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VisibilityBanner extends StatelessWidget {
+  const _VisibilityBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: AppColors.paleTeal,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.visibility_off_outlined, color: AppColors.teal),
+          SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              'Пока вы не нажали «Передать супервизору», запись остаётся только на этом устройстве. При передаче в пакет войдут все заполненные поля, показанные в предварительном просмотре.',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -504,23 +740,128 @@ class _SeparationHint extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.icon, required this.title});
+class _CaseSection extends StatelessWidget {
+  const _CaseSection({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.children,
+    this.initiallyExpanded = false,
+  });
 
-  final IconData icon;
   final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Widget> children;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        leading: Icon(icon, color: AppColors.teal),
+        title: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        subtitle: Text(subtitle),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 2),
+        children: children,
+      ),
+    );
+  }
+}
+
+class _ReadinessCard extends StatelessWidget {
+  const _ReadinessCard({
+    required this.full,
+    required this.hasEpisode,
+    required this.hasQuestion,
+    required this.hasContext,
+    required this.anonymizationConfirmed,
+    required this.onAnonymizationChanged,
+  });
+
+  final bool full;
+  final bool hasEpisode;
+  final bool hasQuestion;
+  final bool hasContext;
+  final bool anonymizationConfirmed;
+  final ValueChanged<bool> onAnonymizationChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.fact_check_outlined, color: AppColors.teal),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'Готовность материала',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _ReadinessLine(
+              ready: hasEpisode,
+              text: 'Есть наблюдаемый эпизод',
+            ),
+            _ReadinessLine(
+              ready: hasQuestion,
+              text: 'Сформулирован вопрос супервизору',
+            ),
+            if (full)
+              _ReadinessLine(
+                ready: hasContext,
+                text: 'Добавлен необходимый контекст',
+              ),
+            CheckboxListTile(
+              value: anonymizationConfirmed,
+              onChanged: (value) => onAnonymizationChanged(value ?? false),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: const Text(
+                'Я проверил(а), что нет имён, адресов, школы, места работы и других узнаваемых деталей',
+              ),
+            ),
+            Text(
+              'Неполный материал можно сохранить. Этот список ничего не блокирует.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadinessLine extends StatelessWidget {
+  const _ReadinessLine({required this.ready, required this.text});
+
+  final bool ready;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 5, 2, 13),
+      padding: const EdgeInsets.only(bottom: 7),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.teal, size: 21),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+          Icon(
+            ready ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+            size: 20,
+            color: ready ? AppColors.teal : AppColors.muted,
           ),
+          const SizedBox(width: 9),
+          Expanded(child: Text(text)),
         ],
       ),
     );
@@ -530,15 +871,15 @@ class _SectionLabel extends StatelessWidget {
 class _ReflectionField extends StatelessWidget {
   const _ReflectionField({
     required this.controller,
-    required this.number,
     required this.label,
     required this.hint,
+    this.number,
     this.isRequired = false,
     this.accent = false,
   });
 
   final TextEditingController controller;
-  final String number;
+  final String? number;
   final String label;
   final String hint;
   final bool isRequired;
@@ -546,55 +887,56 @@ class _ReflectionField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final field = TextFormField(
+      controller: controller,
+      minLines: 2,
+      maxLines: 7,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        alignLabelWithHint: true,
+        border: const OutlineInputBorder(),
+        filled: accent,
+        fillColor: accent ? AppColors.paleBlue : null,
+        suffixIcon: VoiceInputButton(
+          controller: controller,
+          fieldName: label,
+        ),
+      ),
+      validator: isRequired
+          ? (value) => value == null || value.trim().isEmpty
+              ? 'Коротко опишите наблюдаемый эпизод'
+              : null
+          : null,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 17),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: accent ? AppColors.navy : AppColors.paleTeal,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              number,
-              style: TextStyle(
-                color: accent ? Colors.white : AppColors.teal,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: TextFormField(
-              controller: controller,
-              minLines: 2,
-              maxLines: 7,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: label,
-                hintText: hint,
-                alignLabelWithHint: true,
-                border: const OutlineInputBorder(),
-                filled: accent,
-                fillColor: accent ? AppColors.paleBlue : null,
-                suffixIcon: VoiceInputButton(
-                  controller: controller,
-                  fieldName: label,
+      child: number == null
+          ? field
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent ? AppColors.navy : AppColors.paleTeal,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    number!,
+                    style: TextStyle(
+                      color: accent ? Colors.white : AppColors.teal,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
-              validator: isRequired
-                  ? (value) => value == null || value.trim().isEmpty
-                      ? 'Коротко опишите наблюдаемый эпизод'
-                      : null
-                  : null,
+                const SizedBox(width: 11),
+                Expanded(child: field),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

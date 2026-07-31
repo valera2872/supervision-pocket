@@ -3,6 +3,7 @@ import 'package:supervision_pocket/app/theme/app_colors.dart';
 import 'package:supervision_pocket/core/widgets/voice_input_button.dart';
 import 'package:supervision_pocket/features/supervisor/application/supervisor_controller.dart';
 import 'package:supervision_pocket/features/supervisor/domain/supervisor_models.dart';
+import 'package:supervision_pocket/features/supervisor/presentation/request_material_view.dart';
 
 Future<void> openMeetingEditor(
   BuildContext context,
@@ -33,15 +34,27 @@ class MeetingEditorScreen extends StatefulWidget {
   State<MeetingEditorScreen> createState() => _MeetingEditorScreenState();
 }
 
+enum _FollowUpOutcome {
+  notChecked,
+  notTried,
+  triedNoChange,
+  helped,
+  newData,
+  needsContinuation,
+}
+
 class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
   late DateTime _scheduledAt;
   late final Map<String, TextEditingController> _text;
+  late _FollowUpOutcome _followUpOutcome;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     final meeting = widget.controller.findMeeting(widget.meetingId)!;
+    final decodedFollowUp = _decodeFollowUp(meeting.followUpResult);
+    _followUpOutcome = decodedFollowUp.$1;
     _scheduledAt = meeting.scheduledAt;
     _text = {
       'private': TextEditingController(text: meeting.privatePreparationNotes),
@@ -55,7 +68,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
       'marker': TextEditingController(text: meeting.attentionMarker),
       'question': TextEditingController(text: meeting.followUpQuestion),
       'summary': TextEditingController(text: meeting.sharedSummary),
-      'result': TextEditingController(text: meeting.followUpResult),
+      'result': TextEditingController(text: decodedFollowUp.$2),
     };
   }
 
@@ -103,7 +116,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
               const SizedBox(height: 22),
               _title(
                 'Повестка встречи',
-                'Запросы и подготовка по каждому из них.',
+                'Запросы супервизанта и подготовка по каждому из них.',
                 action: completed
                     ? null
                     : TextButton.icon(
@@ -126,21 +139,22 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
               _textCard(
                 keyName: 'private',
                 title: 'Личная подготовка супервизора',
-                hint:
-                    'Предварительные наблюдения и гипотезы. Супервизант эту заметку не увидит.',
+                hint: 'Предварительные наблюдения, реакции и гипотезы.',
+                visibility: 'Только супервизор',
                 icon: Icons.visibility_off_outlined,
                 enabled: !completed,
               ),
               const SizedBox(height: 22),
               _title(
                 'Итог встречи',
-                'Отделите новые понимания, гипотезы и следующий профессиональный шаг.',
+                'Отделите новые понимания, рабочие гипотезы и следующий шаг.',
               ),
               const SizedBox(height: 10),
               _textCard(
                 keyName: 'clear',
                 title: 'Что стало яснее',
                 hint: 'Главное новое понимание после обсуждения.',
+                visibility: 'Общий итог',
                 icon: Icons.lightbulb_outline_rounded,
                 enabled: !completed,
               ),
@@ -149,6 +163,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'perspectives',
                 title: 'Какие перспективы рассматривались',
                 hint: 'Фокусы, модели и альтернативные объяснения.',
+                visibility: 'Общий итог',
                 icon: Icons.view_in_ar_outlined,
                 enabled: !completed,
               ),
@@ -157,6 +172,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'hypothesis',
                 title: 'Рабочая гипотеза',
                 hint: 'Что решили проверить, а не принять за окончательный вывод.',
+                visibility: 'Общий итог',
                 icon: Icons.science_outlined,
                 enabled: !completed,
               ),
@@ -165,6 +181,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'uncertainty',
                 title: 'Что осталось неопределённым',
                 hint: 'Где данных пока недостаточно.',
+                visibility: 'Общий итог',
                 icon: Icons.help_outline_rounded,
                 enabled: !completed,
               ),
@@ -173,6 +190,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'next',
                 title: 'Следующий профессиональный шаг',
                 hint: 'Одно наблюдаемое действие или эксперимент в работе.',
+                visibility: 'Общий итог',
                 icon: Icons.next_plan_outlined,
                 enabled: !completed,
               ),
@@ -181,6 +199,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'marker',
                 title: 'На что обратить внимание',
                 hint: 'Маркер изменения или повторения паттерна.',
+                visibility: 'Общий итог',
                 icon: Icons.track_changes_outlined,
                 enabled: !completed,
               ),
@@ -189,6 +208,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 keyName: 'question',
                 title: 'Что продолжить исследовать',
                 hint: 'Открытый вопрос для следующей встречи.',
+                visibility: 'Общий итог',
                 icon: Icons.explore_outlined,
                 enabled: !completed,
               ),
@@ -196,36 +216,14 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
               _textCard(
                 keyName: 'summary',
                 title: 'Короткий общий итог',
-                hint: 'Формулировка, которую можно передать супервизанту.',
+                hint: 'Краткая формулировка для супервизанта.',
+                visibility: 'Общий итог',
                 icon: Icons.handshake_outlined,
                 enabled: !completed,
               ),
               if (completed) ...[
                 const SizedBox(height: 22),
-                _textCard(
-                  keyName: 'result',
-                  title: 'Проверка после супервизии',
-                  hint:
-                      'Что удалось попробовать, что изменилось и требуется ли продолжение?',
-                  icon: Icons.update_rounded,
-                  enabled: true,
-                ),
-                if (meeting.followUpCheckedAt != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'Проверено ${_dateLabel(meeting.followUpCheckedAt!)}',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _saving ? null : _saveFollowUp,
-                  icon: const Icon(Icons.save_outlined),
-                  label: const Text('Сохранить проверку'),
-                ),
+                _followUpCard(meeting),
               ],
               const SizedBox(height: 24),
               if (!completed) ...[
@@ -329,6 +327,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
     required String keyName,
     required String title,
     required String hint,
+    required String visibility,
     required IconData icon,
     required bool enabled,
   }) {
@@ -348,9 +347,10 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
+                _VisibilityChip(label: visibility),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 7),
             Text(hint, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 12),
             TextField(
@@ -387,16 +387,22 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              request.question,
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    request.question,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const _VisibilityChip(label: 'Получено'),
+              ],
             ),
             if (request.context.isNotEmpty) ...[
-              const SizedBox(height: 7),
-              Text(
-                request.context,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              const SizedBox(height: 10),
+              RequestMaterialView(contextText: request.context),
             ],
             if (request.selectedFocuses.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -413,10 +419,17 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                     .toList(),
               ),
             ],
+            if (request.missingInformation.isNotEmpty ||
+                request.preparationQuestions.isNotEmpty ||
+                request.ethicalOrSystemicNotes.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _PreparationSummary(request: request),
+            ],
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _StatusChip(status: request.status),
                 TextButton.icon(
@@ -471,6 +484,101 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
     );
   }
 
+  Widget _followUpCard(SupervisionMeeting meeting) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.update_rounded, color: AppColors.teal),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Проверка после супервизии',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const _VisibilityChip(label: 'Рабочая запись'),
+              ],
+            ),
+            const SizedBox(height: 7),
+            Text(
+              meeting.nextStep.isEmpty
+                  ? 'Зафиксируйте, что произошло после встречи.'
+                  : 'Планировали: ${meeting.nextStep}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: _FollowUpOutcome.values
+                  .where((item) => item != _FollowUpOutcome.notChecked)
+                  .map(
+                    (outcome) => ChoiceChip(
+                      selected: _followUpOutcome == outcome,
+                      label: Text(_followUpLabel(outcome)),
+                      onSelected: (_) {
+                        setState(() => _followUpOutcome = outcome);
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _text['result'],
+              minLines: 3,
+              maxLines: 8,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Что изменилось или какие появились новые данные?',
+                alignLabelWithHint: true,
+                border: const OutlineInputBorder(),
+                suffixIcon: VoiceInputButton(
+                  controller: _text['result']!,
+                  fieldName: 'проверка результата супервизии',
+                ),
+              ),
+            ),
+            if (meeting.followUpCheckedAt != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Последняя проверка: ${_dateLabel(meeting.followUpCheckedAt!)}',
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            if (_followUpOutcome == _FollowUpOutcome.needsContinuation) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.paleBlue,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text(
+                  'После сохранения можно вернуть встречу в работу или создать новую встречу с этим запросом.',
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: _saving ? null : _saveFollowUp,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Сохранить проверку'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickDateTime() async {
     final date = await showDatePicker(
       context: context,
@@ -478,12 +586,16 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
-    if (date == null || !mounted) return;
+    if (date == null || !mounted) {
+      return;
+    }
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_scheduledAt),
     );
-    if (time == null) return;
+    if (time == null) {
+      return;
+    }
     setState(() {
       _scheduledAt = DateTime(
         date.year,
@@ -515,13 +627,13 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
     final selected = await showModalBottomSheet<String>(
       context: context,
       useSafeArea: true,
-      builder: (context) => ListView(
+      builder: (sheetContext) => ListView(
         shrinkWrap: true,
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
         children: [
           Text(
             'Добавить в повестку',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(sheetContext).textTheme.headlineSmall,
           ),
           const SizedBox(height: 12),
           ...available.map(
@@ -529,14 +641,18 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.chat_bubble_outline_rounded),
               title: Text(request.question),
-              subtitle: request.context.isEmpty ? null : Text(request.context),
-              onTap: () => Navigator.pop(context, request.id),
+              subtitle: request.context.isEmpty
+                  ? null
+                  : const Text('Есть переданный материал'),
+              onTap: () => Navigator.pop(sheetContext, request.id),
             ),
           ),
         ],
       ),
     );
-    if (selected == null) return;
+    if (selected == null) {
+      return;
+    }
     await widget.controller.addRequestToMeeting(
       meetingId: meeting.id,
       requestId: selected,
@@ -566,12 +682,26 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Подготовка запроса',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Подготовка запроса',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ),
+                    const _VisibilityChip(label: 'Только супервизор'),
+                  ],
                 ),
                 const SizedBox(height: 7),
                 Text(request.question),
+                if (request.context.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  RequestMaterialView(
+                    contextText: request.context,
+                    initiallyExpanded: true,
+                  ),
+                ],
                 const SizedBox(height: 18),
                 Text(
                   'Фокусы рассмотрения',
@@ -615,7 +745,9 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                       )
                       .toList(),
                   onChanged: (value) {
-                    if (value != null) setModalState(() => role = value);
+                    if (value != null) {
+                      setModalState(() => role = value);
+                    }
                   },
                 ),
                 const SizedBox(height: 14),
@@ -661,7 +793,9 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
   }
 
   Future<void> _saveMeeting() async {
-    if (_saving) return;
+    if (_saving) {
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.controller.saveMeeting(
@@ -677,66 +811,156 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
         attentionMarker: _text['marker']!.text,
         followUpQuestion: _text['question']!.text,
       );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Встреча сохранена')),
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось сохранить встречу')),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
   Future<void> _saveFollowUp() async {
-    if (_saving) return;
+    if (_saving) {
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.controller.saveFollowUp(
         meetingId: widget.meetingId,
-        result: _text['result']!.text,
+        result: _encodeFollowUp(_followUpOutcome, _text['result']!.text),
       );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Проверка результата сохранена')),
       );
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось сохранить результат')),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
   Future<void> _complete(SupervisionMeeting meeting) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Завершить встречу?'),
         content: const Text(
           'Запросы со статусом «В повестке» будут отмечены завершёнными. Запросы «Продолжить» и «Отложен» сохранят свой статус.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Отмена'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Завершить'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
     await _saveMeeting();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     await widget.controller.completeMeeting(meeting.id);
+  }
+}
+
+class _VisibilityChip extends StatelessWidget {
+  const _VisibilityChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.paleTeal,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.teal,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _PreparationSummary extends StatelessWidget {
+  const _PreparationSummary({required this.request});
+
+  final SharedSupervisionRequest request;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.paleTeal,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.visibility_off_outlined, size: 18, color: AppColors.teal),
+              SizedBox(width: 7),
+              Text(
+                'Личная подготовка по запросу',
+                style: TextStyle(
+                  color: AppColors.teal,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          if (request.missingInformation.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text('Не хватает: ${request.missingInformation}'),
+          ],
+          if (request.preparationQuestions.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('Вопросы: ${request.preparationQuestions}'),
+          ],
+          if (request.ethicalOrSystemicNotes.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('Этика и контекст: ${request.ethicalOrSystemicNotes}'),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -850,3 +1074,33 @@ String _roleLabel(SupervisorRole role) => switch (role) {
       SupervisorRole.teacher => 'Учитель — добавить знания и навыки',
       SupervisorRole.expert => 'Эксперт — дать оценку и ориентиры',
     };
+
+String _followUpLabel(_FollowUpOutcome outcome) => switch (outcome) {
+      _FollowUpOutcome.notChecked => 'Не отмечено',
+      _FollowUpOutcome.notTried => 'Пока не попробовал(а)',
+      _FollowUpOutcome.triedNoChange => 'Попробовал(а), изменений нет',
+      _FollowUpOutcome.helped => 'Шаг помог',
+      _FollowUpOutcome.newData => 'Появились новые данные',
+      _FollowUpOutcome.needsContinuation => 'Нужно продолжение',
+    };
+
+(_FollowUpOutcome, String) _decodeFollowUp(String stored) {
+  const prefix = '@followup:';
+  if (!stored.startsWith(prefix)) {
+    return (_FollowUpOutcome.notChecked, stored);
+  }
+  final newline = stored.indexOf('\n');
+  final name = newline < 0
+      ? stored.substring(prefix.length)
+      : stored.substring(prefix.length, newline);
+  final note = newline < 0 ? '' : stored.substring(newline + 1);
+  final outcome = _FollowUpOutcome.values.firstWhere(
+    (item) => item.name == name,
+    orElse: () => _FollowUpOutcome.notChecked,
+  );
+  return (outcome, note);
+}
+
+String _encodeFollowUp(_FollowUpOutcome outcome, String note) {
+  return '@followup:${outcome.name}\n${note.trim()}';
+}
