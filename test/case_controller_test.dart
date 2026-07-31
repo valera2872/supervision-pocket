@@ -43,26 +43,92 @@ void main() {
     expect(restored.cases.single.draft?.observedFact, contains('замолчал'));
   });
 
-  test('reflection produces a supervision question and clears draft', () async {
-    final controller = CaseController(MemoryCaseRepository());
+  test('full case preparation survives JSON migration and restart', () async {
+    final repository = MemoryCaseRepository();
+    final controller = CaseController(repository);
     await controller.initialize();
     final caseFile = await controller.createCase(
       alias: 'Компас',
       ageRange: '13–15 лет',
-      context: '',
+      context: 'Индивидуальная работа',
     );
     final draft = ReflectionDraft(
       updatedAt: DateTime.now(),
+      mode: ReflectionMode.casePreparation,
+      clientRequest: 'Хочу меньше конфликтовать с родителями.',
+      relevantContext: 'Работа длится три месяца.',
+      currentDynamics: 'Стал чаще говорить о злости.',
       observedFact: 'Подросток несколько раз сменил тему.',
-      stuckPoint: 'Не понимаю, стоит ли возвращать разговор.',
-      supervisionQuestion: 'Как удерживать тему, не усиливая давление?',
+      interpretation: 'Возможно, избегал разговора о стыде.',
+      workingHypothesis: 'Смена темы защищает от уязвимости.',
+      previousAttempts: 'Возвращал к теме прямым вопросом.',
+      resources: 'Умеет замечать телесное напряжение.',
+      ethicalContext: 'Нужно уточнить границы информации для родителей.',
+      requestType: SupervisionRequestType.therapeuticRelationship,
+      supervisionQuestion: 'Как оставаться рядом, не усиливая давление?',
     );
 
-    await controller.saveDraft(caseFile.id, draft);
     await controller.addReflection(caseFile.id, draft);
+    final restored = CaseController(repository);
+    await restored.initialize();
+    final entry = restored.cases.single.entries.single;
 
-    expect(controller.cases.single.entries, hasLength(1));
-    expect(controller.cases.single.draft, isNull);
-    expect(controller.supervisionQuestions, hasLength(1));
+    expect(entry.mode, ReflectionMode.casePreparation);
+    expect(entry.workingHypothesis, contains('уязвимости'));
+    expect(entry.requestType, SupervisionRequestType.therapeuticRelationship);
+  });
+
+  test('reflection can be edited and deleted separately', () async {
+    final controller = CaseController(MemoryCaseRepository());
+    await controller.initialize();
+    final caseFile = await controller.createCase(
+      alias: 'Парус',
+      ageRange: 'Взрослый',
+      context: '',
+    );
+    await controller.addReflection(
+      caseFile.id,
+      ReflectionDraft(
+        updatedAt: DateTime.now(),
+        observedFact: 'Клиент замолчал.',
+        supervisionQuestion: 'Что делать?',
+      ),
+    );
+    final entryId = controller.cases.single.entries.single.id;
+
+    await controller.updateReflection(
+      caseFile.id,
+      entryId,
+      ReflectionDraft(
+        updatedAt: DateTime.now(),
+        observedFact: 'Клиент замолчал после вопроса о злости.',
+        supervisionQuestion: 'Как исследовать молчание без давления?',
+      ),
+    );
+
+    expect(
+      controller.cases.single.entries.single.observedFact,
+      contains('после вопроса'),
+    );
+    await controller.deleteReflection(caseFile.id, entryId);
+    expect(controller.cases.single.entries, isEmpty);
+  });
+
+  test('old 0.9.2 reflection JSON receives safe defaults', () {
+    final entry = ReflectionEntry.fromJson({
+      'id': 'entry-1',
+      'createdAt': '2026-07-30T12:00:00.000',
+      'observedFact': 'Факт',
+      'interpretation': 'Гипотеза',
+      'feeling': '',
+      'impulse': '',
+      'actionTaken': '',
+      'stuckPoint': '',
+      'supervisionQuestion': 'Вопрос',
+    });
+
+    expect(entry.mode, ReflectionMode.quick);
+    expect(entry.clientRequest, isEmpty);
+    expect(entry.requestType, SupervisionRequestType.other);
   });
 }
