@@ -31,11 +31,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Подготовить кейс'));
+    final fullMode = find.text('Подготовить кейс');
+    await tester.ensureVisible(fullMode);
+    await tester.tap(fullMode);
     await tester.pumpAndSettle();
 
     expect(find.text('1. Контекст клиента и работы'), findsOneWidget);
     expect(find.text('5. Запрос на супервизию'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pumpAndSettle();
     expect(find.text('Готовность материала'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
