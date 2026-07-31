@@ -18,8 +18,17 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    signingConfigs {
+        create("review") {
+            storeFile = file("review.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.supervisionpocket.app"
+        applicationId = "com.supervisionpocket.review"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -27,8 +36,11 @@ android {
     }
 
     buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("review")
+        }
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("review")
         }
     }
 }

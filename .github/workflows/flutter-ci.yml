@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   analyze-test-build:
@@ -36,11 +37,22 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Restore stable alpha signing key
-        uses: actions/cache@v4
+      - name: Restore dedicated review signing key
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.android/debug.keystore
-          key: supervision-pocket-alpha-debug-keystore-v1
+          name: supervision-pocket-review-signing-key-seed
+          path: android/app
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: valera2872/supervision-pocket
+          run-id: 30635720524
+
+      - name: Verify review signing key
+        run: |
+          test -f android/app/review.keystore
+          keytool -list \
+            -keystore android/app/review.keystore \
+            -storepass android \
+            -alias androiddebugkey
 
       - name: Format sources
         run: dart format lib test
