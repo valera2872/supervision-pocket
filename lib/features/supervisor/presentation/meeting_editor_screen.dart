@@ -10,7 +10,7 @@ Future<void> openMeetingEditor(
   String meetingId,
 ) {
   return Navigator.of(context).push(
-    MaterialPageRoute(
+    MaterialPageRoute<void>(
       builder: (_) => MeetingEditorScreen(
         controller: controller,
         meetingId: meetingId,
@@ -35,10 +35,7 @@ class MeetingEditorScreen extends StatefulWidget {
 
 class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
   late DateTime _scheduledAt;
-  late final TextEditingController _privateNotes;
-  late final TextEditingController _sharedSummary;
-  late final TextEditingController _nextStep;
-  late final TextEditingController _followUp;
+  late final Map<String, TextEditingController> _text;
   bool _saving = false;
 
   @override
@@ -46,18 +43,27 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
     super.initState();
     final meeting = widget.controller.findMeeting(widget.meetingId)!;
     _scheduledAt = meeting.scheduledAt;
-    _privateNotes = TextEditingController(text: meeting.privatePreparationNotes);
-    _sharedSummary = TextEditingController(text: meeting.sharedSummary);
-    _nextStep = TextEditingController(text: meeting.nextStep);
-    _followUp = TextEditingController(text: meeting.followUpQuestion);
+    _text = {
+      'private': TextEditingController(text: meeting.privatePreparationNotes),
+      'clear': TextEditingController(text: meeting.whatBecameClear),
+      'perspectives': TextEditingController(
+        text: meeting.perspectivesConsidered,
+      ),
+      'hypothesis': TextEditingController(text: meeting.workingHypothesis),
+      'uncertainty': TextEditingController(text: meeting.remainingUncertainty),
+      'next': TextEditingController(text: meeting.nextStep),
+      'marker': TextEditingController(text: meeting.attentionMarker),
+      'question': TextEditingController(text: meeting.followUpQuestion),
+      'summary': TextEditingController(text: meeting.sharedSummary),
+      'result': TextEditingController(text: meeting.followUpResult),
+    };
   }
 
   @override
   void dispose() {
-    _privateNotes.dispose();
-    _sharedSummary.dispose();
-    _nextStep.dispose();
-    _followUp.dispose();
+    for (final controller in _text.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -80,25 +86,24 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
             title: Text(supervisee?.displayName ?? 'Супервизия'),
             actions: [
               IconButton(
-                onPressed: _saving ? null : _save,
+                onPressed: _saving
+                    ? null
+                    : completed
+                        ? _saveFollowUp
+                        : _saveMeeting,
                 tooltip: 'Сохранить',
                 icon: const Icon(Icons.save_outlined),
               ),
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 36),
             children: [
-              _MeetingHeader(
-                meeting: meeting,
-                scheduledAt: _scheduledAt,
-                onChangeDate: completed ? null : _pickDateTime,
-              ),
+              _header(meeting, completed),
               const SizedBox(height: 22),
-              _SectionTitle(
-                title: 'Повестка встречи',
-                subtitle:
-                    'Только запросы, которые действительно будут обсуждаться.',
+              _title(
+                'Повестка встречи',
+                'Запросы и подготовка по каждому из них.',
                 action: completed
                     ? null
                     : TextButton.icon(
@@ -114,62 +119,114 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 ...agenda.map(
                   (request) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _AgendaCard(
-                      request: request,
-                      completed: completed,
-                      onRemove: () => widget.controller.removeRequestFromMeeting(
-                        meetingId: meeting.id,
-                        requestId: request.id,
-                      ),
-                      onStatusChanged: (status) =>
-                          widget.controller.updateRequestStatus(
-                        request.id,
-                        status,
-                      ),
-                    ),
+                    child: _requestCard(request, meeting, completed),
                   ),
                 ),
-              const SizedBox(height: 22),
-              _NoteBlock(
+              const SizedBox(height: 18),
+              _textCard(
+                keyName: 'private',
                 title: 'Личная подготовка супервизора',
-                subtitle:
-                    'Гипотезы, наблюдения и вопросы. Супервизант эту заметку не увидит.',
+                hint:
+                    'Предварительные наблюдения и гипотезы. Супервизант эту заметку не увидит.',
                 icon: Icons.visibility_off_outlined,
-                controller: _privateNotes,
-                fieldName: 'личная подготовка супервизора',
                 enabled: !completed,
               ),
-              const SizedBox(height: 18),
-              _NoteBlock(
-                title: 'Общий итог встречи',
-                subtitle:
-                    'Формулировка, которую можно обсудить и передать супервизанту.',
-                icon: Icons.handshake_outlined,
-                controller: _sharedSummary,
-                fieldName: 'общий итог встречи',
+              const SizedBox(height: 22),
+              _title(
+                'Итог встречи',
+                'Отделите новые понимания, гипотезы и следующий профессиональный шаг.',
+              ),
+              const SizedBox(height: 10),
+              _textCard(
+                keyName: 'clear',
+                title: 'Что стало яснее',
+                hint: 'Главное новое понимание после обсуждения.',
+                icon: Icons.lightbulb_outline_rounded,
                 enabled: !completed,
               ),
-              const SizedBox(height: 18),
-              _NoteBlock(
+              _gap,
+              _textCard(
+                keyName: 'perspectives',
+                title: 'Какие перспективы рассматривались',
+                hint: 'Фокусы, модели и альтернативные объяснения.',
+                icon: Icons.view_in_ar_outlined,
+                enabled: !completed,
+              ),
+              _gap,
+              _textCard(
+                keyName: 'hypothesis',
+                title: 'Рабочая гипотеза',
+                hint: 'Что решили проверить, а не принять за окончательный вывод.',
+                icon: Icons.science_outlined,
+                enabled: !completed,
+              ),
+              _gap,
+              _textCard(
+                keyName: 'uncertainty',
+                title: 'Что осталось неопределённым',
+                hint: 'Где данных пока недостаточно.',
+                icon: Icons.help_outline_rounded,
+                enabled: !completed,
+              ),
+              _gap,
+              _textCard(
+                keyName: 'next',
                 title: 'Следующий профессиональный шаг',
-                subtitle: 'Что супервизант попробует или проверит в работе.',
+                hint: 'Одно наблюдаемое действие или эксперимент в работе.',
                 icon: Icons.next_plan_outlined,
-                controller: _nextStep,
-                fieldName: 'следующий профессиональный шаг',
                 enabled: !completed,
-                minLines: 2,
               ),
-              const SizedBox(height: 18),
-              _NoteBlock(
+              _gap,
+              _textCard(
+                keyName: 'marker',
+                title: 'На что обратить внимание',
+                hint: 'Маркер изменения или повторения паттерна.',
+                icon: Icons.track_changes_outlined,
+                enabled: !completed,
+              ),
+              _gap,
+              _textCard(
+                keyName: 'question',
                 title: 'Что продолжить исследовать',
-                subtitle:
-                    'Вопрос, который остаётся открытым или переносится дальше.',
+                hint: 'Открытый вопрос для следующей встречи.',
                 icon: Icons.explore_outlined,
-                controller: _followUp,
-                fieldName: 'вопрос для продолжения',
                 enabled: !completed,
-                minLines: 2,
               ),
+              _gap,
+              _textCard(
+                keyName: 'summary',
+                title: 'Короткий общий итог',
+                hint: 'Формулировка, которую можно передать супервизанту.',
+                icon: Icons.handshake_outlined,
+                enabled: !completed,
+              ),
+              if (completed) ...[
+                const SizedBox(height: 22),
+                _textCard(
+                  keyName: 'result',
+                  title: 'Проверка после супервизии',
+                  hint:
+                      'Что удалось попробовать, что изменилось и требуется ли продолжение?',
+                  icon: Icons.update_rounded,
+                  enabled: true,
+                ),
+                if (meeting.followUpCheckedAt != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Проверено ${_dateLabel(meeting.followUpCheckedAt!)}',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                FilledButton.icon(
+                  onPressed: _saving ? null : _saveFollowUp,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Сохранить проверку'),
+                ),
+              ],
               const SizedBox(height: 24),
               if (!completed) ...[
                 FilledButton.icon(
@@ -179,7 +236,7 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: _saving ? null : _save,
+                  onPressed: _saving ? null : _saveMeeting,
                   child: const Text('Сохранить без завершения'),
                 ),
               ] else
@@ -194,6 +251,223 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget get _gap => const SizedBox(height: 14);
+
+  Widget _header(SupervisionMeeting meeting, bool completed) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: completed ? AppColors.paleTeal : AppColors.navy,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            completed ? Icons.check_circle_rounded : Icons.event_note_rounded,
+            color: completed ? AppColors.teal : Colors.white,
+            size: 34,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  completed ? 'Встреча завершена' : 'Запланированная встреча',
+                  style: TextStyle(
+                    color: completed ? AppColors.teal : Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _dateLabel(_scheduledAt),
+                  style: TextStyle(
+                    color: completed ? AppColors.ink : const Color(0xFFDCE8ED),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!completed)
+            IconButton(
+              onPressed: _pickDateTime,
+              tooltip: 'Изменить дату',
+              color: Colors.white,
+              icon: const Icon(Icons.edit_calendar_outlined),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _title(String title, String subtitle, {Widget? action}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ),
+        if (action != null) action,
+      ],
+    );
+  }
+
+  Widget _textCard({
+    required String keyName,
+    required String title,
+    required String hint,
+    required IconData icon,
+    required bool enabled,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.teal),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(hint, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _text[keyName],
+              enabled: enabled,
+              minLines: 2,
+              maxLines: 8,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: enabled ? 'Запишите или надиктуйте…' : 'Нет записи',
+                border: const OutlineInputBorder(),
+                suffixIcon: enabled
+                    ? VoiceInputButton(
+                        controller: _text[keyName]!,
+                        fieldName: title,
+                      )
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _requestCard(
+    SharedSupervisionRequest request,
+    SupervisionMeeting meeting,
+    bool completed,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              request.question,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (request.context.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Text(
+                request.context,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+            if (request.selectedFocuses.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: request.selectedFocuses
+                    .map(
+                      (focus) => Chip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text(_focusLabel(focus)),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                _StatusChip(status: request.status),
+                TextButton.icon(
+                  onPressed: () => _prepareRequest(request),
+                  icon: const Icon(Icons.tune_rounded, size: 18),
+                  label: const Text('Подготовить'),
+                ),
+                if (!completed)
+                  PopupMenuButton<SupervisionRequestStatus>(
+                    onSelected: (status) => widget.controller
+                        .updateRequestStatus(request.id, status),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: SupervisionRequestStatus.planned,
+                        child: Text('В повестке'),
+                      ),
+                      PopupMenuItem(
+                        value: SupervisionRequestStatus.completed,
+                        child: Text('Разобран'),
+                      ),
+                      PopupMenuItem(
+                        value: SupervisionRequestStatus.continuing,
+                        child: Text('Требует продолжения'),
+                      ),
+                      PopupMenuItem(
+                        value: SupervisionRequestStatus.deferred,
+                        child: Text('Отложен'),
+                      ),
+                    ],
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
+                      child: Text('Статус'),
+                    ),
+                  ),
+                if (!completed)
+                  TextButton.icon(
+                    onPressed: () => widget.controller.removeRequestFromMeeting(
+                      meetingId: meeting.id,
+                      requestId: request.id,
+                    ),
+                    icon: const Icon(Icons.remove_circle_outline, size: 18),
+                    label: const Text('Убрать'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -269,17 +543,139 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
     );
   }
 
-  Future<void> _save() async {
+  Future<void> _prepareRequest(SharedSupervisionRequest request) async {
+    final missing = TextEditingController(text: request.missingInformation);
+    final questions = TextEditingController(text: request.preparationQuestions);
+    final ethical = TextEditingController(text: request.ethicalOrSystemicNotes);
+    var role = request.suggestedRole;
+    final focuses = request.selectedFocuses.toSet();
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            MediaQuery.viewInsetsOf(context).bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Подготовка запроса',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 7),
+                Text(request.question),
+                const SizedBox(height: 18),
+                Text(
+                  'Фокусы рассмотрения',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: SupervisionFocus.values
+                      .map(
+                        (focus) => FilterChip(
+                          selected: focuses.contains(focus),
+                          label: Text(_focusLabel(focus)),
+                          onSelected: (selected) {
+                            setModalState(() {
+                              if (selected) {
+                                focuses.add(focus);
+                              } else {
+                                focuses.remove(focus);
+                              }
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<SupervisorRole>(
+                  initialValue: role,
+                  decoration: const InputDecoration(
+                    labelText: 'Предполагаемая роль супервизора',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: SupervisorRole.values
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(_roleLabel(item)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setModalState(() => role = value);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _PreparationField(
+                  controller: missing,
+                  label: 'Какой информации не хватает?',
+                ),
+                const SizedBox(height: 14),
+                _PreparationField(
+                  controller: questions,
+                  label: 'Вопросы для встречи',
+                ),
+                const SizedBox(height: 14),
+                _PreparationField(
+                  controller: ethical,
+                  label: 'Этика, риск или системный контекст',
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Сохранить подготовку'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (saved == true) {
+      await widget.controller.saveRequestPreparation(
+        requestId: request.id,
+        selectedFocuses: focuses.toList(),
+        suggestedRole: role,
+        missingInformation: missing.text,
+        preparationQuestions: questions.text,
+        ethicalOrSystemicNotes: ethical.text,
+      );
+    }
+    missing.dispose();
+    questions.dispose();
+    ethical.dispose();
+  }
+
+  Future<void> _saveMeeting() async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
       await widget.controller.saveMeeting(
         meetingId: widget.meetingId,
         scheduledAt: _scheduledAt,
-        privatePreparationNotes: _privateNotes.text,
-        sharedSummary: _sharedSummary.text,
-        nextStep: _nextStep.text,
-        followUpQuestion: _followUp.text,
+        privatePreparationNotes: _text['private']!.text,
+        sharedSummary: _text['summary']!.text,
+        whatBecameClear: _text['clear']!.text,
+        perspectivesConsidered: _text['perspectives']!.text,
+        workingHypothesis: _text['hypothesis']!.text,
+        remainingUncertainty: _text['uncertainty']!.text,
+        nextStep: _text['next']!.text,
+        attentionMarker: _text['marker']!.text,
+        followUpQuestion: _text['question']!.text,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -289,6 +685,28 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось сохранить встречу')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _saveFollowUp() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.controller.saveFollowUp(
+        meetingId: widget.meetingId,
+        result: _text['result']!.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Проверка результата сохранена')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось сохранить результат')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -316,188 +734,14 @@ class _MeetingEditorScreenState extends State<MeetingEditorScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _save();
+    await _saveMeeting();
     if (!mounted) return;
     await widget.controller.completeMeeting(meeting.id);
   }
 }
 
-class _MeetingHeader extends StatelessWidget {
-  const _MeetingHeader({
-    required this.meeting,
-    required this.scheduledAt,
-    required this.onChangeDate,
-  });
-
-  final SupervisionMeeting meeting;
-  final DateTime scheduledAt;
-  final VoidCallback? onChangeDate;
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = meeting.status == SupervisionMeetingStatus.completed;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: completed ? AppColors.paleTeal : AppColors.navy,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            completed ? Icons.check_circle_rounded : Icons.event_note_rounded,
-            color: completed ? AppColors.teal : Colors.white,
-            size: 34,
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  completed ? 'Встреча завершена' : 'Запланированная встреча',
-                  style: TextStyle(
-                    color: completed ? AppColors.teal : Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _dateTimeLabel(scheduledAt),
-                  style: TextStyle(
-                    color: completed ? AppColors.ink : const Color(0xFFDCE8ED),
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onChangeDate != null)
-            IconButton(
-              onPressed: onChangeDate,
-              tooltip: 'Изменить дату',
-              color: Colors.white,
-              icon: const Icon(Icons.edit_calendar_outlined),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-    this.action,
-  });
-
-  final String title;
-  final String subtitle;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-            ],
-          ),
-        ),
-        if (action != null) action!,
-      ],
-    );
-  }
-}
-
-class _AgendaCard extends StatelessWidget {
-  const _AgendaCard({
-    required this.request,
-    required this.completed,
-    required this.onRemove,
-    required this.onStatusChanged,
-  });
-
-  final SharedSupervisionRequest request;
-  final bool completed;
-  final VoidCallback onRemove;
-  final ValueChanged<SupervisionRequestStatus> onStatusChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    request.question,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                if (!completed)
-                  PopupMenuButton<SupervisionRequestStatus>(
-                    tooltip: 'Результат работы с запросом',
-                    onSelected: onStatusChanged,
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: SupervisionRequestStatus.planned,
-                        child: Text('В повестке'),
-                      ),
-                      PopupMenuItem(
-                        value: SupervisionRequestStatus.completed,
-                        child: Text('Разобран'),
-                      ),
-                      PopupMenuItem(
-                        value: SupervisionRequestStatus.continuing,
-                        child: Text('Требует продолжения'),
-                      ),
-                      PopupMenuItem(
-                        value: SupervisionRequestStatus.deferred,
-                        child: Text('Отложен'),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            if (request.context.isNotEmpty) ...[
-              const SizedBox(height: 7),
-              Text(request.context, style: Theme.of(context).textTheme.bodyMedium),
-            ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _RequestStatusChip(status: request.status),
-                const Spacer(),
-                if (!completed)
-                  TextButton.icon(
-                    onPressed: onRemove,
-                    icon: const Icon(Icons.remove_circle_outline, size: 18),
-                    label: const Text('Убрать'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RequestStatusChip extends StatelessWidget {
-  const _RequestStatusChip({required this.status});
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
 
   final SupervisionRequestStatus status;
 
@@ -511,7 +755,7 @@ class _RequestStatusChip extends StatelessWidget {
       SupervisionRequestStatus.deferred => 'Отложен',
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.paleBlue,
         borderRadius: BorderRadius.circular(30),
@@ -528,66 +772,28 @@ class _RequestStatusChip extends StatelessWidget {
   }
 }
 
-class _NoteBlock extends StatelessWidget {
-  const _NoteBlock({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
+class _PreparationField extends StatelessWidget {
+  const _PreparationField({
     required this.controller,
-    required this.fieldName,
-    required this.enabled,
-    this.minLines = 3,
+    required this.label,
   });
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
   final TextEditingController controller;
-  final String fieldName;
-  final bool enabled;
-  final int minLines;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: AppColors.teal),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              enabled: enabled,
-              minLines: minLines,
-              maxLines: 8,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: enabled ? 'Запишите или надиктуйте…' : 'Нет записи',
-                border: const OutlineInputBorder(),
-                suffixIcon: enabled
-                    ? VoiceInputButton(
-                        controller: controller,
-                        fieldName: fieldName,
-                      )
-                    : null,
-              ),
-            ),
-          ],
+    return TextField(
+      controller: controller,
+      minLines: 2,
+      maxLines: 6,
+      decoration: InputDecoration(
+        labelText: label,
+        alignLabelWithHint: true,
+        border: const OutlineInputBorder(),
+        suffixIcon: VoiceInputButton(
+          controller: controller,
+          fieldName: label,
         ),
       ),
     );
@@ -620,10 +826,27 @@ class _EmptyAgenda extends StatelessWidget {
   }
 }
 
-String _dateTimeLabel(DateTime value) {
+String _dateLabel(DateTime value) {
   final day = value.day.toString().padLeft(2, '0');
   final month = value.month.toString().padLeft(2, '0');
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
   return '$day.$month.${value.year} · $hour:$minute';
 }
+
+String _focusLabel(SupervisionFocus focus) => switch (focus) {
+      SupervisionFocus.client => 'Клиент',
+      SupervisionFocus.interventions => 'Интервенции',
+      SupervisionFocus.therapeuticRelationship => 'Отношения',
+      SupervisionFocus.therapistProcess => 'Состояние психолога',
+      SupervisionFocus.supervisionRelationship => 'Отношения в супервизии',
+      SupervisionFocus.supervisorProcess => 'Впечатления супервизора',
+      SupervisionFocus.widerContext => 'Широкий контекст',
+    };
+
+String _roleLabel(SupervisorRole role) => switch (role) {
+      SupervisorRole.facilitator => 'Фасилитатор — помочь осмыслить',
+      SupervisorRole.consultant => 'Консультант — исследовать вместе',
+      SupervisorRole.teacher => 'Учитель — добавить знания и навыки',
+      SupervisorRole.expert => 'Эксперт — дать оценку и ориентиры',
+    };
