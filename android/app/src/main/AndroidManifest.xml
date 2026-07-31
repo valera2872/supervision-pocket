@@ -9,7 +9,7 @@
     </queries>
 
     <application
-        android:label="Supervision Pocket"
+        android:label="Supervision Pocket Test"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:fullBackupContent="false"
