@@ -121,6 +121,16 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
     });
   }
 
+  void _changeMode(ReflectionMode value) {
+    if (_mode == value) {
+      return;
+    }
+    setState(() => _mode = value);
+    if (!_editing) {
+      _scheduleDraft();
+    }
+  }
+
   ReflectionDraft _draft() => ReflectionDraft(
         updatedAt: DateTime.now(),
         mode: _mode,
@@ -302,27 +312,9 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 18),
-            SegmentedButton<ReflectionMode>(
-              segments: const [
-                ButtonSegment(
-                  value: ReflectionMode.quick,
-                  icon: Icon(Icons.bolt_outlined),
-                  label: Text('Быстро'),
-                ),
-                ButtonSegment(
-                  value: ReflectionMode.casePreparation,
-                  icon: Icon(Icons.fact_check_outlined),
-                  label: Text('Подготовить кейс'),
-                ),
-              ],
-              selected: {_mode},
-              showSelectedIcon: false,
-              onSelectionChanged: (selection) {
-                setState(() => _mode = selection.first);
-                if (!_editing) {
-                  _scheduleDraft();
-                }
-              },
+            _ModeSelector(
+              selected: _mode,
+              onChanged: _changeMode,
             ),
             const SizedBox(height: 16),
             const _VisibilityBanner(),
@@ -545,6 +537,7 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
               padding: const EdgeInsets.only(bottom: 17),
               child: DropdownButtonFormField<SupervisionRequestType>(
                 initialValue: _requestType,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Какого рода помощь нужна?',
                   border: OutlineInputBorder(),
@@ -553,7 +546,10 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
                     .map(
                       (type) => DropdownMenuItem(
                         value: type,
-                        child: Text(_requestTypeLabel(type)),
+                        child: Text(
+                          _requestTypeLabel(type),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -588,6 +584,105 @@ class _ReflectionEditorScreenState extends State<ReflectionEditorScreen> {
       return 'Не заполнено — можно пропустить';
     }
     return 'Заполнено $completed из ${indexes.length}';
+  }
+}
+
+class _ModeSelector extends StatelessWidget {
+  const _ModeSelector({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final ReflectionMode selected;
+  final ValueChanged<ReflectionMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _ModeOption(
+          title: 'Быстрая запись',
+          subtitle: 'Сохранить один сложный эпизод за пару минут',
+          icon: Icons.bolt_outlined,
+          selected: selected == ReflectionMode.quick,
+          onTap: () => onChanged(ReflectionMode.quick),
+        ),
+        const SizedBox(height: 9),
+        _ModeOption(
+          title: 'Подготовить кейс',
+          subtitle: 'Собрать контекст, гипотезу и вопрос к встрече',
+          icon: Icons.fact_check_outlined,
+          selected: selected == ReflectionMode.casePreparation,
+          onTap: () => onChanged(ReflectionMode.casePreparation),
+        ),
+      ],
+    );
+  }
+}
+
+class _ModeOption extends StatelessWidget {
+  const _ModeOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.paleBlue : AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: selected ? AppColors.navy : AppColors.outline,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? AppColors.navy : AppColors.teal),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: selected ? AppColors.navy : AppColors.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
