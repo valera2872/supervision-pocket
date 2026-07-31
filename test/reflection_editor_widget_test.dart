@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supervision_pocket/app/theme/app_theme.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/data/case_repository.dart';
 import 'package:supervision_pocket/features/cases/domain/case_models.dart';
@@ -32,6 +33,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light(),
         home: ReflectionEditorScreen(
           controller: controller,
           caseId: caseFile.id,
