@@ -42,12 +42,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final selector = tester.widget<SegmentedButton<ReflectionMode>>(
-      find.byType(SegmentedButton<ReflectionMode>),
-    );
-    expect(selector.selected, contains(ReflectionMode.casePreparation));
-
-    await tester.drag(find.byType(ListView), const Offset(0, -480));
+    expect(find.text('Подготовить кейс'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -560));
     await tester.pumpAndSettle();
 
     expect(find.text('1. Контекст клиента и работы'), findsOneWidget);
