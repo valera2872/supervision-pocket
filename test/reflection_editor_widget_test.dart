@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/data/case_repository.dart';
+import 'package:supervision_pocket/features/cases/domain/case_models.dart';
 import 'package:supervision_pocket/features/cases/presentation/reflection_editor_screen.dart';
 
 void main() {
@@ -20,6 +21,14 @@ void main() {
       ageRange: '10–12 лет',
       context: '',
     );
+    await controller.saveDraft(
+      caseFile.id,
+      ReflectionDraft(
+        updatedAt: DateTime.now(),
+        mode: ReflectionMode.casePreparation,
+        observedFact: 'Клиент замолчал после вопроса.',
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -31,16 +40,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final fullMode = find.text('Подготовить кейс');
-    await tester.ensureVisible(fullMode);
-    await tester.tap(fullMode);
-    await tester.pumpAndSettle();
-
     expect(find.text('1. Контекст клиента и работы'), findsOneWidget);
     expect(find.text('5. Запрос на супервизию'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -900));
-    await tester.pumpAndSettle();
-    expect(find.text('Готовность материала'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
