@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.supervisionpocket.app"
+        applicationId = "com.supervisionpocket.review"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
