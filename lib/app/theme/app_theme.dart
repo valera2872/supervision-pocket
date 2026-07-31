@@ -76,6 +76,19 @@ abstract final class AppTheme {
           side: const BorderSide(color: AppColors.outline),
         ),
       ),
+      segmentedButtonTheme: const SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: WidgetStatePropertyAll(Size(0, 46)),
+          padding: WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          ),
+          textStyle: WidgetStatePropertyAll(
+            TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          ),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
       checkboxTheme: CheckboxThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
