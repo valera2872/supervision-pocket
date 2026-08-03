@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:supervision_pocket/app/app.dart';
 import 'package:supervision_pocket/app/app_controller.dart';
+import 'package:supervision_pocket/config/supabase_config.dart';
 import 'package:supervision_pocket/core/security/security_store.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/data/case_repository.dart';
@@ -12,6 +14,10 @@ Future<void> main() async {
   ErrorWidget.builder = (_) => const _FriendlyErrorPanel();
 
   try {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
     final controller = AppController(FlutterSecurityStore());
     final caseController = CaseController(EncryptedCaseRepository());
     final supervisorController = SupervisorController(
@@ -71,7 +77,7 @@ class _FriendlyErrorPanel extends StatelessWidget {
               ),
               SizedBox(height: 10),
               Text(
-                'Закройте приложение и откройте его снова. Сохранённые записи останутся на устройстве.',
+                'Проверьте соединение с интернетом, закройте приложение и откройте его снова. Локальные записи останутся на устройстве.',
                 textAlign: TextAlign.center,
               ),
             ],
