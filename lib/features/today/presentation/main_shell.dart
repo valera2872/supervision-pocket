@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/presentation/cases_screen.dart';
 import 'package:supervision_pocket/features/supervision/presentation/supervision_screen.dart';
+import 'package:supervision_pocket/features/sync/presentation/cloud_sync_screen.dart';
 import 'package:supervision_pocket/features/today/presentation/today_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -36,6 +37,10 @@ class _MainShellState extends State<MainShell> {
       ),
       CasesScreen(controller: widget.caseController),
       SupervisionScreen(controller: widget.caseController),
+      CloudSyncScreen(
+        role: 'psychologist',
+        caseController: widget.caseController,
+      ),
     ];
 
     return PopScope(
@@ -65,6 +70,11 @@ class _MainShellState extends State<MainShell> {
               icon: Icon(Icons.forum_outlined),
               selectedIcon: Icon(Icons.forum_rounded),
               label: 'Супервизия',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.lock_person_outlined),
+              selectedIcon: Icon(Icons.lock_person_rounded),
+              label: 'Связь',
             ),
           ],
         ),
