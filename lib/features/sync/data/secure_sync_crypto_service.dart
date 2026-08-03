@@ -14,7 +14,7 @@ class SecureSyncCryptoService {
     required Uri joinBaseUri,
     int keyVersion = 1,
   }) async {
-    final key = await SecretKey.randomBytes(32).extractBytes();
+    final key = _randomBytes(32);
     final inviteToken = encodeBase64Url(_randomBytes(24));
     final fragment = Uri(
       queryParameters: {
