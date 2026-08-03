@@ -49,8 +49,8 @@ class SupervisorWorkspaceHost extends StatelessWidget {
                 FloatingActionButton.extended(
                   heroTag: 'supervisor-import',
                   onPressed: () => importRequestPackage(context, controller),
-                  icon: const Icon(Icons.move_to_inbox_outlined),
-                  label: const Text('Получить запрос'),
+                  icon: const Icon(Icons.folder_open_outlined),
+                  label: const Text('Открыть файл запроса'),
                 ),
               ],
             ),

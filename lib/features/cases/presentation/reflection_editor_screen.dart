@@ -829,7 +829,7 @@ class _ReadinessCard extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
               title: const Text(
-                'Я проверил(а), что нет имён, адресов, школы, места работы и других узнаваемых деталей',
+                'Материал готов к передаче',
               ),
             ),
             Text(

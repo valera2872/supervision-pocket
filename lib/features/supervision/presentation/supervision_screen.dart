@@ -58,13 +58,13 @@ class SupervisionScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Icon(
-                            Icons.privacy_tip_outlined,
+                            Icons.info_outline_rounded,
                             color: AppColors.navy,
                           ),
                           SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Ничего не отправляется автоматически. Перед передачей проверьте, что в тексте нет имён, адресов, школы, места работы и других узнаваемых деталей.',
+                              'Ничего не отправляется автоматически. Вы сами выбираете, какой материал и когда передать супервизору.',
                             ),
                           ),
                         ],

@@ -109,7 +109,7 @@ Future<void> _sharePackage(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Супервизор выберет «Получить запрос» в своём приложении, откроет файл и введёт этот код:',
+              'Для открытия супервизору нужны прикреплённый файл .sprequest и этот код:',
             ),
             const SizedBox(height: 16),
             Container(
@@ -131,7 +131,7 @@ Future<void> _sharePackage(
             ),
             const SizedBox(height: 12),
             const Text(
-              'Код будет добавлен в сообщение вместе с файлом. Перед отправкой ещё раз проверьте, что в карточке нет идентифицирующих данных клиента.',
+              'Код будет добавлен в сообщение. Если рядом с сообщением нет файла .sprequest, запрос не был передан.',
             ),
           ],
         ),
@@ -161,7 +161,12 @@ Future<void> _sharePackage(
           ),
         ],
         text:
-            'Запрос для Supervision Pocket. Код импорта: ${exported.code}',
+            'Запрос Supervision Pocket.\n\n'
+            '1. Сохраните прикреплённый файл .sprequest.\n'
+            '2. Откройте Supervision Pocket Test в роли «Супервизор».\n'
+            '3. Нажмите «Открыть файл запроса».\n'
+            '4. Выберите файл и введите код: ${exported.code}\n\n'
+            'Без прикреплённого файла один код не откроет запрос.',
         subject: 'Запрос к супервизии: ${caseFile.alias}',
         title: 'Передать запрос в Supervision Pocket',
       ),
@@ -183,11 +188,57 @@ Future<void> importRequestPackage(
   BuildContext context,
   SupervisorController controller,
 ) async {
-  if (controller.supervisees.isEmpty) {
+  final ready = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Открыть файл запроса'),
+      content: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Для импорта нужны два элемента: прикреплённый файл .sprequest и восьмисимвольный код из сообщения.',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'Один код без файла не содержит запрос и открыть его нельзя.',
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Отмена'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          icon: const Icon(Icons.folder_open_outlined),
+          label: const Text('Выбрать файл'),
+        ),
+      ],
+    ),
+  );
+  if (ready != true || !context.mounted) {
+    return;
+  }
+
+  final picked = await FilePicker.platform.pickFiles(
+    type: FileType.any,
+    allowMultiple: false,
+  );
+  final pickedFile = picked?.files.single;
+  final filePath = pickedFile?.path;
+  if (filePath == null || !context.mounted) {
+    return;
+  }
+  if (!(pickedFile?.name.toLowerCase().endsWith(
+        '.${SupervisionTransferService.fileExtension}',
+      ) ??
+      false)) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Сначала добавьте супервизанта, чтобы связать с ним полученный запрос.',
+          'Выберите прикреплённый файл с окончанием .sprequest, а не текст сообщения.',
         ),
         behavior: SnackBarBehavior.floating,
       ),
@@ -195,27 +246,32 @@ Future<void> importRequestPackage(
     return;
   }
 
-  final picked = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: const [SupervisionTransferService.fileExtension],
-    allowMultiple: false,
-  );
-  final filePath = picked?.files.single.path;
-  if (filePath == null || !context.mounted) return;
-
   final codeController = TextEditingController();
   final code = await showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Введите код пакета'),
+      title: const Text('Введите код из сообщения'),
       content: TextField(
         controller: codeController,
         autofocus: true,
         maxLength: 8,
         textCapitalization: TextCapitalization.characters,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: 'Например: A7K9M2Q4',
-          border: OutlineInputBorder(),
+          border: const OutlineInputBorder(),
+          suffixIcon: IconButton(
+            tooltip: 'Вставить код',
+            icon: const Icon(Icons.content_paste_rounded),
+            onPressed: () async {
+              final clipboard = await Clipboard.getData('text/plain');
+              final value = clipboard?.text?.trim().toUpperCase() ?? '';
+              if (value.isNotEmpty) {
+                codeController.text = value.length > 8
+                    ? value.substring(0, 8)
+                    : value;
+              }
+            },
+          ),
         ),
       ),
       actions: [
@@ -226,30 +282,43 @@ Future<void> importRequestPackage(
         FilledButton(
           onPressed: () {
             final value = codeController.text.trim().toUpperCase();
-            if (value.length == 8) Navigator.pop(dialogContext, value);
+            if (value.length == 8) {
+              Navigator.pop(dialogContext, value);
+            }
           },
-          child: const Text('Открыть'),
+          child: const Text('Открыть запрос'),
         ),
       ],
     ),
   );
   codeController.dispose();
-  if (code == null || !context.mounted) return;
+  if (code == null || !context.mounted) {
+    return;
+  }
 
   try {
     final payload = await SupervisionTransferService().importRequest(
       filePath: filePath,
       code: code,
     );
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
 
-    final superviseeId = await _chooseSupervisee(context, controller);
-    if (superviseeId == null || !context.mounted) return;
+    final superviseeId = await _chooseOrCreateSupervisee(context, controller);
+    if (superviseeId == null || !context.mounted) {
+      return;
+    }
+    final profile = controller.findSupervisee(superviseeId);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Добавить полученный запрос?'),
+        title: Text(
+          profile == null
+              ? 'Добавить полученный запрос?'
+              : 'Добавить запрос для ${profile.displayName}?',
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -271,57 +340,74 @@ Future<void> importRequestPackage(
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Добавить'),
+            child: const Text('Добавить в кабинет'),
           ),
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
     await controller.addRequest(
       superviseeId: superviseeId,
       question: payload.question,
       context: payload.toSupervisorContext(),
     );
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
+    final destination = profile?.displayName ?? 'супервизант';
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Запрос добавлен в кабинет супервизора'),
+      SnackBar(
+        content: Text(
+          'Запрос сохранён: Супервизанты → $destination → Запросы',
+        ),
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
       ),
     );
   } on FormatException catch (error) {
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
     final wrongCode = error.message == 'Wrong transfer code';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           wrongCode
-              ? 'Код не подошёл. Проверьте восемь символов и повторите импорт.'
-              : 'Файл не является корректным пакетом Supervision Pocket.',
+              ? 'Код не подошёл. Проверьте восемь символов и повторите.'
+              : 'Выбранный файл не является запросом Supervision Pocket.',
         ),
         behavior: SnackBarBehavior.floating,
       ),
     );
   } catch (_) {
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Не удалось открыть пакет запроса.'),
+        content: Text(
+          'Не удалось открыть запрос. Убедитесь, что выбраны файл .sprequest и код из одного сообщения.',
+        ),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 }
 
-Future<String?> _chooseSupervisee(
+Future<String?> _chooseOrCreateSupervisee(
   BuildContext context,
   SupervisorController controller,
 ) async {
+  if (controller.supervisees.isEmpty) {
+    return _createSuperviseeForImport(context, controller);
+  }
   if (controller.supervisees.length == 1) {
     return controller.supervisees.first.id;
   }
-  return showModalBottomSheet<String>(
+  final selected = await showModalBottomSheet<String>(
     context: context,
     useSafeArea: true,
     showDragHandle: true,
@@ -330,7 +416,7 @@ Future<String?> _chooseSupervisee(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
         Text(
-          'От кого получен запрос?',
+          'Для кого этот запрос?',
           style: Theme.of(sheetContext).textTheme.headlineSmall,
         ),
         const SizedBox(height: 8),
@@ -339,6 +425,12 @@ Future<String?> _chooseSupervisee(
           style: Theme.of(sheetContext).textTheme.bodyMedium,
         ),
         const SizedBox(height: 12),
+        ListTile(
+          leading: const Icon(Icons.person_add_alt_1_rounded),
+          title: const Text('Добавить нового супервизанта'),
+          onTap: () => Navigator.pop(sheetContext, '__new__'),
+        ),
+        const Divider(),
         ...controller.supervisees.map(
           (profile) => ListTile(
             leading: const Icon(Icons.person_outline_rounded),
@@ -352,4 +444,55 @@ Future<String?> _chooseSupervisee(
       ],
     ),
   );
+  if (selected == '__new__' && context.mounted) {
+    return _createSuperviseeForImport(context, controller);
+  }
+  return selected;
+}
+
+Future<String?> _createSuperviseeForImport(
+  BuildContext context,
+  SupervisorController controller,
+) async {
+  final nameController = TextEditingController();
+  final name = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Как подписать супервизанта?'),
+      content: TextField(
+        controller: nameController,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          labelText: 'Имя или рабочее обозначение',
+          hintText: 'Например: Анна или Группа 2026',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Отмена'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final value = nameController.text.trim();
+            if (value.isNotEmpty) {
+              Navigator.pop(dialogContext, value);
+            }
+          },
+          child: const Text('Создать и продолжить'),
+        ),
+      ],
+    ),
+  );
+  nameController.dispose();
+  if (name == null) {
+    return null;
+  }
+  final profile = await controller.addSupervisee(
+    displayName: name,
+    professionalContext: '',
+  );
+  return profile.id;
 }
