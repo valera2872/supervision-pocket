@@ -61,7 +61,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _loadData() async {
     if (_service.currentUser == null) {
       if (!mounted) return;
       setState(() {
@@ -70,17 +70,19 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
       });
       return;
     }
-    await _run(() async {
-      final results = await Future.wait([
-        _service.listConnections(),
-        _service.listRequests(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _connections = results[0] as List<CloudConnection>;
-        _requests = results[1] as List<CloudRequestItem>;
-      });
-    }, successMessage: null);
+    final results = await Future.wait([
+      _service.listConnections(),
+      _service.listRequests(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _connections = results[0] as List<CloudConnection>;
+      _requests = results[1] as List<CloudRequestItem>;
+    });
+  }
+
+  Future<void> _refresh() {
+    return _run(_loadData, successMessage: null);
   }
 
   Future<void> _authenticate() async {
@@ -101,12 +103,9 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
           role: widget.role,
         );
         if (response.session == null) {
-          if (!mounted) return;
-          setState(() {
-            _message =
-                'Аккаунт создан. Откройте письмо Supabase и подтвердите email, затем войдите.';
-          });
-          return;
+          throw StateError(
+            'Аккаунт создан. Откройте письмо Supabase и подтвердите email, затем войдите.',
+          );
         }
       } else {
         await _service.signIn(
@@ -116,7 +115,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
           role: widget.role,
         );
       }
-      await _refresh();
+      await _loadData();
     }, successMessage: _registerMode ? 'Аккаунт создан' : 'Вход выполнен');
   }
 
@@ -137,7 +136,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     await _run(() async {
       await _service.acceptInvitation(_invitationLink.text);
       _invitationLink.clear();
-      await _refresh();
+      await _loadData();
     }, successMessage: 'Связь с супервизором создана');
   }
 
@@ -207,7 +206,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
         connection: selected,
         payload: payload.toJson(),
       );
-      await _refresh();
+      await _loadData();
     }, successMessage: 'Запрос передан супервизору');
   }
 
@@ -215,16 +214,18 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     final controller = widget.supervisorController;
     final payload = item.payload;
     if (controller == null || payload == null) return;
-    final connection = _connections
-        .where((candidate) => candidate.id == item.connectionId)
-        .firstOrNull;
+    final connection = _firstWhereOrNull(
+      _connections,
+      (candidate) => candidate.id == item.connectionId,
+    );
     final peerName = connection?.peerName ?? 'Супервизант';
     final material = TransferRequestPayload.fromJson(payload);
 
     await _run(() async {
-      var supervisee = controller.supervisees
-          .where((candidate) => candidate.displayName == peerName)
-          .firstOrNull;
+      var supervisee = _firstWhereOrNull(
+        controller.supervisees,
+        (candidate) => candidate.displayName == peerName,
+      );
       supervisee ??= await controller.addSupervisee(
         displayName: peerName,
         professionalContext: 'Подключён через защищённую связь',
@@ -235,7 +236,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
         context: material.toSupervisorContext(),
       );
       await _service.markRequestSeen(item.id);
-      await _refresh();
+      await _loadData();
     }, successMessage: 'Запрос сохранён в кабинете супервизора');
   }
 
@@ -262,7 +263,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     if (confirmed != true) return;
     await _run(() async {
       await _service.revokeConnection(connection.id);
-      await _refresh();
+      await _loadData();
     }, successMessage: 'Связь отозвана');
   }
 
@@ -401,9 +402,11 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
         Card(
           child: ListTile(
             leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-            title: Text(_displayName.text.trim().isEmpty
-                ? user.email ?? 'Аккаунт'
-                : _displayName.text.trim()),
+            title: Text(
+              _displayName.text.trim().isEmpty
+                  ? user.email ?? 'Аккаунт'
+                  : _displayName.text.trim(),
+            ),
             subtitle: Text(user.email ?? ''),
             trailing: TextButton(
               onPressed: _loading
@@ -457,7 +460,7 @@ class _CloudSyncScreenState extends State<CloudSyncScreen> {
     if (text.contains('SocketException') || text.contains('ClientException')) {
       return 'Нет соединения с сервером. Проверьте интернет и повторите.';
     }
-    return text;
+    return text.replaceFirst('Bad state: ', '');
   }
 }
 
@@ -537,8 +540,10 @@ class _SupervisorInvitationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Пригласить психолога',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Пригласить психолога',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 6),
             const Text(
               'Создайте одноразовую ссылку и передайте её психологу. Она действует 7 дней.',
@@ -583,8 +588,10 @@ class _AcceptInvitationCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Подключиться к супервизору',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Подключиться к супервизору',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 6),
             const Text('Вставьте полную ссылку, которую прислал супервизор.'),
             const SizedBox(height: 14),
@@ -679,19 +686,25 @@ class _PreparedRequestsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Передать подготовленный запрос',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Передать подготовленный запрос',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 10),
             if (!connectionsAvailable)
               const Text('Сначала подключитесь к супервизору.')
             else if (questions.isEmpty)
-              const Text('В разделе «Супервизия» пока нет подготовленных вопросов.')
+              const Text(
+                'В разделе «Супервизия» пока нет подготовленных вопросов.',
+              )
             else
               for (final item in questions)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(item.entry.supervisionQuestion),
-                  subtitle: Text('${item.caseFile.alias} · ${item.caseFile.ageRange}'),
+                  subtitle: Text(
+                    '${item.caseFile.alias} · ${item.caseFile.ageRange}',
+                  ),
                   trailing: IconButton.filledTonal(
                     tooltip: 'Передать',
                     onPressed: () => onSend(item.caseFile, item.entry),
@@ -724,19 +737,23 @@ class _IncomingRequestsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Входящие запросы',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Входящие запросы',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 10),
             if (requests.isEmpty)
               const Text('Новых запросов пока нет.')
             else
-              for (final item in requests) _IncomingRequestTile(
-                item: item,
-                connection: connections
-                    .where((candidate) => candidate.id == item.connectionId)
-                    .firstOrNull,
-                onSave: () => onSave(item),
-              ),
+              for (final item in requests)
+                _IncomingRequestTile(
+                  item: item,
+                  connection: _firstWhereOrNull(
+                    connections,
+                    (candidate) => candidate.id == item.connectionId,
+                  ),
+                  onSave: () => onSave(item),
+                ),
           ],
         ),
       ),
@@ -791,4 +808,11 @@ class _IncomingRequestTile extends StatelessWidget {
       ],
     );
   }
+}
+
+T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T) test) {
+  for (final item in items) {
+    if (test(item)) return item;
+  }
+  return null;
 }
