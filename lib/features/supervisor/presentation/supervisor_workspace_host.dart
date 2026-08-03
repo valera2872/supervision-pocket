@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supervision_pocket/core/widgets/reset_application_dialog.dart';
 import 'package:supervision_pocket/features/supervisor/application/supervisor_controller.dart';
 import 'package:supervision_pocket/features/supervisor/presentation/supervisor_shell.dart';
+import 'package:supervision_pocket/features/sync/presentation/cloud_sync_screen.dart';
 import 'package:supervision_pocket/features/transfer/presentation/request_transfer_flow.dart';
 
 class SupervisorWorkspaceHost extends StatelessWidget {
@@ -44,6 +45,20 @@ class SupervisorWorkspaceHost extends StatelessWidget {
                     onReset: onResetAll,
                   ),
                   child: const Icon(Icons.restart_alt_rounded),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: 'supervisor-cloud',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CloudSyncScreen(
+                        role: 'supervisor',
+                        supervisorController: controller,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.lock_person_outlined),
+                  label: const Text('Защищённая связь'),
                 ),
                 const SizedBox(height: 12),
                 FloatingActionButton.extended(
