@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supervision_pocket/features/cases/application/case_controller.dart';
 import 'package:supervision_pocket/features/cases/presentation/cases_screen.dart';
 import 'package:supervision_pocket/features/supervision/presentation/supervision_screen.dart';
+import 'package:supervision_pocket/features/sync/presentation/cloud_sync_screen.dart';
 import 'package:supervision_pocket/features/today/presentation/today_screen.dart';
 
 class MainShell extends StatefulWidget {
@@ -27,16 +28,20 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      TodayScreen(
-        onLock: widget.onLock,
-        onChangeRole: widget.onChangeRole,
-        onResetAll: widget.onResetAll,
-        caseController: widget.caseController,
-      ),
-      CasesScreen(controller: widget.caseController),
-      SupervisionScreen(controller: widget.caseController),
-    ];
+    final body = switch (_index) {
+      0 => TodayScreen(
+          onLock: widget.onLock,
+          onChangeRole: widget.onChangeRole,
+          onResetAll: widget.onResetAll,
+          caseController: widget.caseController,
+        ),
+      1 => CasesScreen(controller: widget.caseController),
+      2 => SupervisionScreen(controller: widget.caseController),
+      _ => CloudSyncScreen(
+          role: 'psychologist',
+          caseController: widget.caseController,
+        ),
+    };
 
     return PopScope(
       canPop: _index == 0,
@@ -46,7 +51,7 @@ class _MainShellState extends State<MainShell> {
         }
       },
       child: Scaffold(
-        body: IndexedStack(index: _index, children: screens),
+        body: body,
         bottomNavigationBar: NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (value) => setState(() => _index = value),
@@ -65,6 +70,11 @@ class _MainShellState extends State<MainShell> {
               icon: Icon(Icons.forum_outlined),
               selectedIcon: Icon(Icons.forum_rounded),
               label: 'Супервизия',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.lock_person_outlined),
+              selectedIcon: Icon(Icons.lock_person_rounded),
+              label: 'Связь',
             ),
           ],
         ),
