@@ -1,0 +1,62 @@
+name: Website CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/site-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/site-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check JavaScript syntax
+        run: node --check docs/app.js
+      - name: Validate required website files and markup
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          required = [
+              Path('docs/index.html'),
+              Path('docs/styles.css'),
+              Path('docs/app.js'),
+              Path('docs/robots.txt'),
+              Path('docs/sitemap.xml'),
+              Path('docs/.nojekyll'),
+          ]
+          missing = [str(path) for path in required if not path.exists()]
+          if missing:
+              raise SystemExit(f'Missing website files: {missing}')
+
+          html = Path('docs/index.html').read_text(encoding='utf-8')
+          for token in [
+              '<title>',
+              'meta name="description"',
+              'id="request-form"',
+              'id="observed"',
+              'id="result-panel"',
+              'app.js',
+              'styles.css',
+          ]:
+              if token not in html:
+                  raise SystemExit(f'Missing required markup: {token}')
+
+          class Parser(HTMLParser):
+              pass
+
+          Parser().feed(html)
+          print('Website validation passed')
+          PY
