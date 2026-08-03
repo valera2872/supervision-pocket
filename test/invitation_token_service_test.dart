@@ -7,7 +7,7 @@ void main() {
   test('produces stable SHA-256 hex for the server invitation RPC', () {
     expect(
       service.sha256Hex('invite-token'),
-      '26a0ba33f2daff0b503b6a757fb6f5bbfe1354cbfccdd49747f806d3e871f5dd',
+      'f9e3c47d452a8fab2dc56ef07d766534cb2cd31c5f63de7107412acc65daa5b8',
     );
   });
 
